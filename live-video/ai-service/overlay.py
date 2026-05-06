@@ -22,11 +22,18 @@ FONT_THICKNESS = 1
 CALIBRATION_FILE = os.path.join(os.path.dirname(__file__), "calibration.json")
 
 
-def load_calibration():
-    """Load saved strike zone homography data."""
-    if not os.path.exists(CALIBRATION_FILE):
+def load_calibration(path=None):
+    """
+    Load saved strike zone homography data.
+
+    path: Optional filesystem path to calibration JSON. Defaults to the
+    module-adjacent calibration.json (legacy single-cam path). camera_worker
+    passes a per-cam file (calibration.<id>.json) for multicam mode.
+    """
+    target = path if path else CALIBRATION_FILE
+    if not os.path.exists(target):
         return None
-    with open(CALIBRATION_FILE) as f:
+    with open(target) as f:
         data = json.load(f)
     return data  # { "zone_points": [[x,y],[x,y],[x,y],[x,y]] }
 

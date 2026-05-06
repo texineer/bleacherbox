@@ -155,18 +155,134 @@ On Mac Mini M4 with MPS (Metal) acceleration, `yolov8s` runs at real-time speed.
 
 ---
 
+## Multi-Camera Auto-Director (MODE=multicam)
+
+Single-camera mode (everything above) is the legacy `main.py` path. The
+multicam mode runs an auto-director: ingest from any number of cameras,
+score "where the action is" per camera with YOLO, and switch the broadcast
+output to whichever camera has the best view of the play.
+
+### Architecture
+
+```
+[Mevo / GoPro / Phone / RTSP cam] ──RTMP push──┐
+[GoPro Webcam mode / OBS Virtual Cam] ─bridge──┼──► MediaMTX (rtmp://localhost:1935/camN)
+                                                       │
+                                          ┌────────────┴────────────┐
+                                          │  N CameraWorker procs   │
+                                          │  read RTMP → YOLO →     │
+                                          │  overlay → frame slab + │
+                                          │  ScoreEvent             │
+                                          └────────────┬────────────┘
+                                                       ▼
+                                              Director (hysteresis)
+                                                       ▼
+                                       selected slab → stdout BGR
+                                                       ▼
+                                              ffmpeg → RTMP YouTube
+```
+
+### Setup
+
+1. **Install MediaMTX** from https://github.com/bluenviron/mediamtx (single
+   binary). Drop it at `/opt/mediamtx/mediamtx`.
+2. **Edit `cameras.yaml`** to describe your fleet (id, name, role, ingest_url,
+   optional `uvc_device` for USB cameras). Default file ships with three
+   example cameras.
+3. **Install Python deps** (same `pip3 install -r ai-service/requirements.txt`).
+4. **(Optional) Bridge USB cameras** for any camera that doesn't push RTMP
+   natively (e.g. GoPro Webcam mode, OBS Virtual Cam):
+   ```bash
+   ./scripts/start-bridges.sh &
+   ```
+   This auto-launches an FFmpeg sidecar per camera with `uvc_device` set,
+   pushing to MediaMTX.
+
+### Per-camera calibration
+
+```bash
+python3 ai-service/calibration.py --input rtmp://localhost:1935/cam1 --camera-id cam1
+python3 ai-service/calibration.py --input rtmp://localhost:1935/cam2 --camera-id cam2
+```
+
+Each writes `calibration.<id>.json` and is picked up automatically by the
+worker for that camera (referenced from `cameras.yaml`).
+
+### Run the broadcast
+
+```bash
+# 1. Start MediaMTX
+/opt/mediamtx/mediamtx live-video/mediamtx/mediamtx.yml &
+
+# 2. Push from your cameras to rtmp://<this-host>:1935/cam1, /cam2, /cam3, ...
+#    (Mevo: settings → Streaming → RTMP. iPhone: Larix Broadcaster.
+#    GoPro Webcam mode: handled by start-bridges.sh.)
+
+# 3. Confirm cameras are publishing
+ffplay rtsp://localhost:8554/cam1   # ESC to exit
+
+# 4. Run the auto-director and push to YouTube
+MODE=multicam ./stream/stream.sh YOUR_STREAM_KEY
+```
+
+### Dashboard
+
+While `MODE=multicam` is running, open http://localhost:8888/dashboard
+to see live per-camera scores, the current selection, and live thumbnails.
+Pin a camera (override) by clicking its `pin` button.
+
+### Tuning
+
+Edit `cameras.yaml` `director.policy`:
+- `switch_threshold` — challenger must beat current by this on a 0..1 scale
+  before being eligible (default 0.15).
+- `dwell_seconds` — sustained for this long before cutting (default 1.5s).
+  Raise to suppress chatter, lower for snappier cuts.
+- `ewma_alpha` — score smoothing (default 0.35).
+- `no_ball_default_role` — which role to fall back to when no camera sees
+  the ball (default `wide`).
+
+### Audio
+
+The broadcast muxes audio from `audio_source` in `cameras.yaml` (default
+`cam1`). Set `WITH_AUDIO=0` on the `stream.sh` invocation to fall back to a
+silent track (anullsrc) — useful if your audio source camera isn't
+publishing yet.
+
+### Hardware-agnostic inference
+
+`Tracker` auto-detects the best YOLO backend at startup:
+**CUDA → MPS (Apple Silicon) → OpenVINO (Intel CPU/iGPU) → CPU**.
+Set `inference.device` in `cameras.yaml` to override.
+
+---
+
 ## File Structure
 
 ```
 live-video/
 ├── README.md                  ← this file
+├── cameras.yaml               ← multicam fleet config
+├── mediamtx/
+│   └── mediamtx.yml           ← ingest server config
 ├── ai-service/
-│   ├── main.py                ← entry point, frame pipeline
-│   ├── tracker.py             ← YOLOv8 + BoT-SORT detection/tracking
-│   ├── overlay.py             ← draw bounding boxes, trail, strike zone
-│   ├── calibration.py         ← field calibration (click plate corners)
-│   ├── requirements.txt       ← Python dependencies
-│   └── calibration.json       ← generated after running calibration.py
+│   ├── main.py                ← legacy single-cam pipeline
+│   ├── broadcast.py           ← multicam entrypoint (MODE=multicam)
+│   ├── camera_worker.py       ← per-cam YOLO + overlay process
+│   ├── director.py            ← EWMA + hysteresis switching
+│   ├── scoring.py             ← per-frame action score
+│   ├── frame_bus.py           ← shared-memory frame slabs
+│   ├── config.py              ← cameras.yaml loader
+│   ├── status_server.py       ← FastAPI dashboard on :8888
+│   ├── uvc_bridge.py          ← UVC → RTMP supervisor
+│   ├── tracker.py             ← YOLOv8 + BoT-SORT (auto device detect)
+│   ├── overlay.py             ← bounding boxes, trail, strike zone
+│   ├── calibration.py         ← field calibration (--camera-id for multicam)
+│   ├── test_scoring.py        ← unit tests for scoring
+│   ├── test_director.py       ← unit tests for director
+│   └── requirements.txt       ← Python dependencies
+├── scripts/
+│   └── start-bridges.sh       ← launch UVC bridges per cameras.yaml
 └── stream/
-    └── stream.sh              ← FFmpeg pipe → YouTube RTMP
+    └── stream.sh              ← FFmpeg pipe → YouTube RTMP (MODE=single|multicam)
 ```

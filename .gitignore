@@ -4,3 +4,9 @@ client/dist/
 *.db
 .env
 live-video/temp/
+live-video/fixtures/
+live-video/.venv/
+__pycache__/
+*.pyc
+yolov8*.pt
+yolov8*_openvino_model/

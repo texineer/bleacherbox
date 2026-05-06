@@ -1,0 +1,56 @@
+# MediaMTX config for BleacherBox multi-camera ingest.
+# Paths are camN — created on demand by RTMP push or UVC bridge.
+
+logLevel: info
+logDestinations: [stdout]
+logFile: ""
+
+readTimeout: 10s
+writeTimeout: 10s
+writeQueueSize: 512
+
+# API for broadcast.py to query "is camN publishing?"
+api: yes
+apiAddress: 127.0.0.1:9997
+
+# RTMP ingest (cameras + apps push here)
+rtmp: yes
+rtmpAddress: :1935
+rtmpEncryption: "no"
+
+# RTSP re-stream (downstream cv2.VideoCapture reads here for lower jitter)
+rtsp: yes
+rtspAddress: :8554
+protocols: [tcp]
+
+# HLS for browser preview if you want to spot-check from a phone.
+# Port 8889 keeps clear of status_server (8888) defined in cameras.yaml.
+hls: yes
+hlsAddress: :8889
+hlsAlwaysRemux: yes
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+
+# WebRTC kept off until/if we need sub-second latency.
+webrtc: no
+
+# Permissive paths for local field setup. For LAN-exposed deployments,
+# replace `all_others` with per-path publishUser/publishPass.
+pathDefaults:
+  source: publisher
+  sourceOnDemand: no
+  runOnReady: ""
+  runOnReadyRestart: no
+  recordPath: ""
+
+paths:
+  cam1:
+  cam2:
+  cam3:
+  cam4:
+  cam5:
+  cam6:
+  cam7:
+  cam8:
+  all_others:
+    source: publisher

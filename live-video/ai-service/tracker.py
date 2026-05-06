@@ -1,13 +1,70 @@
 """
 Player and ball detection + tracking using YOLOv8 with BoT-SORT.
 """
+import logging
+import os
+import platform
+from collections import deque
+from pathlib import Path
+from typing import Optional
+
 import numpy as np
 from ultralytics import YOLO
-from collections import deque
 
 # COCO class IDs relevant to baseball
 PERSON_CLASS = 0
 BALL_CLASS = 32  # sports ball in COCO
+
+log = logging.getLogger(__name__)
+
+
+def detect_device() -> str:
+    """
+    Auto-detect the best inference backend for this host.
+
+    Priority: cuda → mps → openvino (Intel CPU/iGPU with `openvino` installed)
+    → cpu fallback.
+
+    Returns one of: "cuda", "mps", "openvino", "cpu". The Tracker class
+    interprets "openvino" by lazy-exporting the model to that format and
+    running inference via the CPU device on the OpenVINO-backed graph.
+    """
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+    except Exception as e:
+        log.debug("torch backend probe failed: %s", e)
+
+    machine = platform.machine().lower()
+    is_x86 = machine in ("x86_64", "amd64", "i386", "i686")
+    if is_x86:
+        try:
+            import openvino  # noqa: F401
+            return "openvino"
+        except ImportError:
+            pass
+
+    return "cpu"
+
+
+def _ensure_openvino_export(model_path: str) -> str:
+    """
+    Ensure an OpenVINO export of the given .pt model exists, returning the
+    path to the exported directory (which YOLO() can load directly).
+    """
+    p = Path(model_path)
+    if p.is_dir():
+        return str(p)
+    base = p.with_suffix("")
+    ov_dir = Path(f"{base}_openvino_model")
+    if ov_dir.exists():
+        return str(ov_dir)
+    log.info("exporting %s to OpenVINO at %s (one-time)", model_path, ov_dir)
+    YOLO(model_path).export(format="openvino")
+    return str(ov_dir)
 
 
 class Detection:
@@ -27,9 +84,38 @@ class Detection:
 
 
 class Tracker:
-    def __init__(self, model_path="yolov8n.pt", conf=0.35, ball_trail_len=20):
-        self.model = YOLO(model_path)
+    def __init__(
+        self,
+        model_path: str = "yolov8n.pt",
+        conf: float = 0.35,
+        ball_trail_len: int = 20,
+        device: Optional[str] = None,
+        imgsz: Optional[int] = None,
+    ):
+        """
+        device:
+            None      -> auto-detect via detect_device()
+            "cuda"    -> NVIDIA GPU
+            "mps"     -> Apple Silicon
+            "openvino"-> Intel CPU/iGPU; loads OpenVINO export, infers on "cpu"
+            "cpu"     -> torch CPU fallback
+        imgsz: optional inference resolution override (e.g. 640 to speed up).
+        """
+        if device is None:
+            device = detect_device()
+        self.device = device
         self.conf = conf
+        self.imgsz = imgsz
+
+        if device == "openvino":
+            ov_path = _ensure_openvino_export(model_path)
+            self.model = YOLO(ov_path, task="detect")
+            # OpenVINO graphs run on "cpu" from torch's perspective.
+            self._track_device = "cpu"
+        else:
+            self.model = YOLO(model_path)
+            self._track_device = device
+
         # Rolling trail for ball positions: deque of (cx, cy, age)
         self.ball_trail = deque(maxlen=ball_trail_len)
 
@@ -38,14 +124,17 @@ class Tracker:
         Run YOLO tracking on a frame.
         Returns (players: list[Detection], ball: Detection|None)
         """
-        results = self.model.track(
-            frame,
+        track_kwargs = dict(
             persist=True,
             conf=self.conf,
             classes=[PERSON_CLASS, BALL_CLASS],
             tracker="botsort.yaml",
             verbose=False,
+            device=self._track_device,
         )
+        if self.imgsz:
+            track_kwargs["imgsz"] = self.imgsz
+        results = self.model.track(frame, **track_kwargs)
 
         players = []
         ball = None

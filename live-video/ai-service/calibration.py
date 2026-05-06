@@ -20,8 +20,18 @@ WINDOW = "Strike Zone Calibration — click 4 corners (TL, TR, BR, BL), then pre
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", default="0", help="Camera index or video file path")
+    parser.add_argument("--input", default="0", help="Camera index, video file path, or rtmp:// URL")
+    parser.add_argument("--camera-id", default=None,
+                        help="Optional camera id for multicam mode. "
+                             "Output filename becomes calibration.<id>.json so per-camera "
+                             "calibrations can coexist. Default: calibration.json")
     args = parser.parse_args()
+
+    out_path = (
+        os.path.join(os.path.dirname(__file__), f"calibration.{args.camera_id}.json")
+        if args.camera_id
+        else CALIBRATION_FILE
+    )
 
     src = int(args.input) if args.input.isdigit() else args.input
     cap = cv2.VideoCapture(src)
@@ -82,10 +92,10 @@ def main():
     cv2.destroyAllWindows()
 
     data = {"zone_points": points, "frame_size": [w, h]}
-    with open(CALIBRATION_FILE, "w") as f:
+    with open(out_path, "w") as f:
         json.dump(data, f, indent=2)
 
-    print(f"[calibration] Saved to {CALIBRATION_FILE}")
+    print(f"[calibration] Saved to {out_path}")
     print(f"  Points: {points}")
 
 

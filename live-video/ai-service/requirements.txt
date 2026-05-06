@@ -4,3 +4,8 @@ numpy>=1.26.0
 scipy>=1.13.0
 fastapi>=0.115.0
 uvicorn>=0.30.0
+pyyaml>=6.0
+httpx>=0.27.0          # used by status_server preview proxy + mediamtx api probing
+jinja2>=3.1.0          # status_server HTML template
+# Phase E (deferred): playwright>=1.45.0 for scorebug headless render
+

@@ -1,0 +1,73 @@
+# BleacherBox multi-camera fleet config.
+#
+# Two ways a camera can land in MediaMTX:
+#   1. The camera/app pushes RTMP directly to ingest_url (Mevo, GoPro RTMP, Larix).
+#   2. The camera is a UVC device — set uvc_device and uvc_bridge.py runs FFmpeg
+#      to push to MediaMTX on its behalf (GoPro Webcam mode, OBS Virtual Cam).
+#
+# `role` is consumed by scoring.py for situational priors. Free-form string;
+# director.policy.no_ball_default_role must match one of these values.
+
+cameras:
+  - id: cam1
+    name: "Batter Box"
+    role: batter_box
+    ingest_url: rtmp://localhost:1935/cam1
+    calibration: calibration.cam1.json
+    enabled: true
+
+  - id: cam2
+    name: "First Base"
+    role: first_base
+    ingest_url: rtmp://localhost:1935/cam2
+    enabled: true
+
+  - id: cam3
+    name: "Wide Field"
+    role: wide
+    ingest_url: rtmp://localhost:1935/cam3
+    # Example UVC bridge — uncomment and set device path/index to use:
+    # uvc_device: /dev/video0       # Linux
+    # uvc_device: "0"               # macOS avfoundation index
+    # uvc_resolution: 1280x720
+    # uvc_framerate: 30
+    enabled: true
+
+director:
+  policy:
+    switch_threshold: 0.05      # dev demo: snappy switching. Field default: 0.15
+    dwell_seconds: 0.8          # dev demo: shorter dwell. Field default: 1.5
+    ewma_alpha: 0.35            # score smoothing
+    no_ball_default_role: wide  # role to fall back to when no cam sees the ball
+    no_ball_grace_seconds: 5.0  # hold current cam this long before applying default
+  weights:
+    ball_visible: 0.40
+    ball_centrality: 0.20
+    ball_size: 0.15
+    player_density: 0.15
+    role_bonus: 0.10
+
+audio_source: cam1     # which cam's audio FFmpeg muxes into the broadcast
+
+mediamtx:
+  binary: /opt/mediamtx/mediamtx
+  config: live-video/mediamtx/mediamtx.yml
+  rtmp_port: 1935
+  rtsp_port: 8554
+  api_port: 9997               # used by broadcast.py to verify cams are publishing
+
+inference:
+  model: yolov8n.pt
+  conf: 0.20                   # dev: catch borderline detections (small tennis ball). Field default: 0.35
+  imgsz: 640                   # CPU-only AMD iGPU dev box — 640 keeps real-time
+  device: auto                 # auto | cuda | mps | openvino | cpu
+
+output:
+  width: 1280
+  height: 720
+  fps: 15           # dev box (CPU-only, 3 workers ≈ 8 fps each); raise to 30 on field hardware
+  bitrate: 4500k
+
+status_server:
+  host: 127.0.0.1
+  port: 8888
