@@ -83,7 +83,8 @@ async function scrapeFtEventSchedule(eventSlug, teamName, ftBase = DEFAULT_FT_BA
 
         const opponentName = isT1 ? t2 : t1;
         const gameTime = game.start_time || '';
-        const field = game.location_name || '';
+        // Different FT sites key the venue name differently (location_name, location, field_name).
+        const field = game.location_name || game.location || game.field_name || '';
         const score1 = parseInt(game.team_score_1) || null;
         const score2 = parseInt(game.team_score_2) || null;
 
