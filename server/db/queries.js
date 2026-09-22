@@ -48,17 +48,17 @@ async function getAllTeams() {
   return all(db, 'SELECT * FROM teams WHERE slug IS NOT NULL ORDER BY name');
 }
 
-async function registerTeam({ slug, pgOrgId, pgTeamId, name, ageGroup, ftTeamUuid, ftSeasons, logoUrl }) {
+async function registerTeam({ slug, pgOrgId, pgTeamId, name, ageGroup, ftTeamUuid, ftSeasons, ftBaseUrl, logoUrl }) {
   const db = await getDb();
   // Upsert: if team exists by PG IDs, update slug/ft fields; otherwise insert
   const existing = get(db, 'SELECT * FROM teams WHERE pg_org_id = ? AND pg_team_id = ?', [pgOrgId, pgTeamId]);
   if (existing) {
-    run(db, `UPDATE teams SET slug=?, ft_team_uuid=?, ft_seasons=?, logo_url=? WHERE pg_org_id=? AND pg_team_id=?`,
-      [slug, ftTeamUuid || null, ftSeasons || null, logoUrl || null, pgOrgId, pgTeamId]);
+    run(db, `UPDATE teams SET slug=?, ft_team_uuid=?, ft_seasons=?, ft_base_url=?, logo_url=? WHERE pg_org_id=? AND pg_team_id=?`,
+      [slug, ftTeamUuid || null, ftSeasons || null, ftBaseUrl || null, logoUrl || null, pgOrgId, pgTeamId]);
   } else {
-    run(db, `INSERT INTO teams (pg_org_id, pg_team_id, name, age_group, slug, ft_team_uuid, ft_seasons, logo_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [pgOrgId, pgTeamId, name, ageGroup, slug, ftTeamUuid || null, ftSeasons || null, logoUrl || null]);
+    run(db, `INSERT INTO teams (pg_org_id, pg_team_id, name, age_group, slug, ft_team_uuid, ft_seasons, ft_base_url, logo_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [pgOrgId, pgTeamId, name, ageGroup, slug, ftTeamUuid || null, ftSeasons || null, ftBaseUrl || null, logoUrl || null]);
   }
 }
 

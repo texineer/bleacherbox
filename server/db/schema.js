@@ -190,6 +190,7 @@ function initSchema() {
   try { db.run("ALTER TABLE teams ADD COLUMN ft_team_uuid TEXT"); } catch(e) {}
   try { db.run("ALTER TABLE teams ADD COLUMN ft_seasons TEXT"); } catch(e) {}
   try { db.run("ALTER TABLE teams ADD COLUMN logo_url TEXT"); } catch(e) {}
+  try { db.run("ALTER TABLE teams ADD COLUMN ft_base_url TEXT"); } catch(e) {}
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_slug ON teams(slug)');
 
   // Live scorebook tables

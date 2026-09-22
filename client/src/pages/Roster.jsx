@@ -6,7 +6,7 @@ import WalkupSongManager from '../components/WalkupSongManager'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 const PG_BASE = 'https://www.perfectgame.org'
-const FT_BASE = 'https://play.fivetoolyouth.org'
+const DEFAULT_FT_BASE = 'https://play.fivetoolyouth.org'
 
 export default function Roster() {
   const { slug } = useParams()
@@ -31,7 +31,7 @@ export default function Roster() {
   const canEdit = user && hasTeamRole(team.pg_org_id, team.pg_team_id, ['admin', 'scorekeeper'])
   const pgUrl = `${PG_BASE}/PGBA/Team/default.aspx?orgid=${team.pg_org_id}&orgteamid=${team.pg_team_id}`
   const ftUrl = team.ft_team_uuid && team.ft_seasons
-    ? `${FT_BASE}/team/details/${team.ft_seasons.split(',')[0]}/${team.ft_team_uuid}`
+    ? `${team.ft_base_url || DEFAULT_FT_BASE}/team/details/${team.ft_seasons.split(',')[0]}/${team.ft_team_uuid}`
     : null
 
   return (

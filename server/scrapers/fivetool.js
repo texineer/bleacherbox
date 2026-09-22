@@ -2,7 +2,12 @@ const cheerio = require('cheerio');
 const queries = require('../db/queries');
 const { fetchRenderedHtml, closeBrowser } = require('./browser');
 
-const FT_BASE = 'https://play.fivetoolyouth.org';
+// Five Tool runs separate sites per age bracket; each registered team picks one via ft_base_url.
+const FT_SITES = {
+  youth: 'https://play.fivetoolyouth.org',
+  events: 'https://events.fivetool.org',
+};
+const DEFAULT_FT_BASE = FT_SITES.youth;
 
 // Generate a deterministic integer from a string (for event IDs)
 // Offset to 20M+ range to avoid collision with PG event IDs (typically 5-6 digits)
@@ -12,13 +17,19 @@ function ftEventHash(slug) {
   return (hash & 0x7FFFFFFF) + 20000000;
 }
 
-function teamUrl(season, teamUuid) {
-  return `${FT_BASE}/team/details/${season}/${teamUuid}`;
+// Pull the event slug out of an FT event URL regardless of which FT site it's on
+function eventSlugFromUrl(eventUrl) {
+  const m = (eventUrl || '').match(/\/events\/([^/]+)\/?/);
+  return m ? m[1] : '';
+}
+
+function teamUrl(ftBase, season, teamUuid) {
+  return `${ftBase}/team/details/${season}/${teamUuid}`;
 }
 
 // Scrape the FT event schedule page to get game times and matchups
-async function scrapeFtEventSchedule(eventSlug, teamName) {
-  const url = `${FT_BASE}/events/${eventSlug}/schedule/all`;
+async function scrapeFtEventSchedule(eventSlug, teamName, ftBase = DEFAULT_FT_BASE) {
+  const url = `${ftBase}/events/${eventSlug}/schedule/all`;
   console.log(`[ft-scraper] Fetching event schedule: ${url}`);
 
   try {
@@ -106,8 +117,8 @@ async function scrapeFtEventSchedule(eventSlug, teamName) {
 
 // Scrape registered teams from an FT event teams page, grouped by division panel
 // Also extracts venue info from the event page
-async function scrapeFtEventTeams(eventSlug, ageGroup) {
-  const url = `${FT_BASE}/events/${eventSlug}/teams`;
+async function scrapeFtEventTeams(eventSlug, ageGroup, ftBase = DEFAULT_FT_BASE) {
+  const url = `${ftBase}/events/${eventSlug}/teams`;
   console.log(`[ft-scraper] Fetching event teams: ${url}${ageGroup ? ` (filtering for ${ageGroup})` : ''}`);
 
   try {
@@ -180,8 +191,8 @@ async function scrapeFtEventTeams(eventSlug, ageGroup) {
   }
 }
 
-async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId) {
-  const url = teamUrl(season, teamUuid);
+async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId, ftBase = DEFAULT_FT_BASE) {
+  const url = teamUrl(ftBase, season, teamUuid);
   console.log(`[ft-scraper] Fetching: ${url}`);
 
   const html = await fetchRenderedHtml(url);
@@ -220,7 +231,7 @@ async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId) {
   for (const row of rows) {
     if (row['EVENT'] && row['DATE'] && row['W-L-T']) {
       const eventLink = row['EVENT'].link || '';
-      const slug = eventLink.replace(FT_BASE + '/events/', '').replace(/\/$/, '');
+      const slug = eventSlugFromUrl(eventLink);
       const eventId = ftEventHash(slug);
 
       const event = {
@@ -307,7 +318,7 @@ async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId) {
     // Scrape scheduled games from the event schedule page
     // Remove trailing year from team name (page title adds "2026" but schedule doesn't)
     const matchName = result.teamName.replace(/\s*\d{4}\s*$/, '').toLowerCase();
-    const scheduledGames = await scrapeFtEventSchedule(event.slug, matchName);
+    const scheduledGames = await scrapeFtEventSchedule(event.slug, matchName, ftBase);
     event.scheduledGames = scheduledGames;
   }
 
@@ -374,4 +385,4 @@ async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId) {
   return result;
 }
 
-module.exports = { scrapeFiveToolTeam, scrapeFtEventTeams, FT_BASE, ftEventHash };
+module.exports = { scrapeFiveToolTeam, scrapeFtEventTeams, scrapeFtEventSchedule, FT_SITES, DEFAULT_FT_BASE, ftEventHash, eventSlugFromUrl };

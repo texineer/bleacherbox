@@ -13,7 +13,7 @@ async function scrapeBySlug(slug, year = DEFAULT_YEAR) {
   if (!team) throw new Error(`Team not found: ${slug}`);
   const ftUuid = team.ft_team_uuid || null;
   const ftSeasons = team.ft_seasons ? team.ft_seasons.split(',') : [];
-  return scrapeAll(team.pg_org_id, team.pg_team_id, year, ftUuid, ftSeasons);
+  return scrapeAll(team.pg_org_id, team.pg_team_id, year, ftUuid, ftSeasons, team.ft_base_url || undefined);
 }
 
 // Scrape all registered teams
@@ -24,7 +24,7 @@ async function scrapeAllTeams(year = DEFAULT_YEAR) {
     const ftUuid = team.ft_team_uuid || null;
     const ftSeasons = team.ft_seasons ? team.ft_seasons.split(',') : [];
     try {
-      await scrapeAll(team.pg_org_id, team.pg_team_id, year, ftUuid, ftSeasons);
+      await scrapeAll(team.pg_org_id, team.pg_team_id, year, ftUuid, ftSeasons, team.ft_base_url || undefined);
     } catch (err) {
       console.error(`[scraper] Failed to scrape ${team.slug}: ${err.message}`);
     }
@@ -32,7 +32,7 @@ async function scrapeAllTeams(year = DEFAULT_YEAR) {
   saveDb();
 }
 
-async function scrapeAll(orgId, teamId, year = DEFAULT_YEAR, ftTeamUuid = null, ftSeasons = []) {
+async function scrapeAll(orgId, teamId, year = DEFAULT_YEAR, ftTeamUuid = null, ftSeasons = [], ftBase = undefined) {
   console.log(`\n=== Scraping team ${orgId}/${teamId} for ${year} ===\n`);
 
   try {
@@ -167,7 +167,7 @@ async function scrapeAll(orgId, teamId, year = DEFAULT_YEAR, ftTeamUuid = null, 
       console.log('\n--- Five Tool Youth ---');
       for (const ftSeason of ftSeasons) {
         try {
-          await scrapeFiveToolTeam(ftTeamUuid, ftSeason, orgId, teamId);
+          await scrapeFiveToolTeam(ftTeamUuid, ftSeason, orgId, teamId, ftBase);
           await sleep(1500);
         } catch (err) {
           console.error(`[ft-scraper] Error scraping ${ftSeason}: ${err.message}`);

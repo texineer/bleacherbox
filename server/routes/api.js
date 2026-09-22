@@ -150,7 +150,7 @@ router.get('/teams/by-slug/:slug', async (req, res) => {
 // POST /api/teams - register a new team (requires auth, creator becomes admin)
 router.post('/teams', requireAuth, async (req, res) => {
   try {
-    const { slug, pgOrgId, pgTeamId, name, ageGroup, ftTeamUuid, ftSeasons, logoUrl } = req.body;
+    const { slug, pgOrgId, pgTeamId, name, ageGroup, ftTeamUuid, ftSeasons, ftBaseUrl, logoUrl } = req.body;
     if (!slug || !pgOrgId || !pgTeamId) return res.status(400).json({ error: 'slug, pgOrgId, pgTeamId required' });
 
     // pg IDs must be positive integers.
@@ -168,7 +168,7 @@ router.post('/teams', requireAuth, async (req, res) => {
       return res.status(409).json({ error: 'Team already registered' });
     }
 
-    await queries.registerTeam({ slug, pgOrgId: orgId, pgTeamId: teamId, name: name || '', ageGroup: ageGroup || '', ftTeamUuid, ftSeasons, logoUrl });
+    await queries.registerTeam({ slug, pgOrgId: orgId, pgTeamId: teamId, name: name || '', ageGroup: ageGroup || '', ftTeamUuid, ftSeasons, ftBaseUrl, logoUrl });
     // Auto-assign admin role to creator
     await queries.setUserTeamRole(req.user.id, orgId, teamId, 'admin');
     res.json({ status: 'ok', slug });
@@ -371,12 +371,12 @@ router.post('/tournaments/:eventId/sync', requireAuth, async (req, res) => {
           const allTeams = await queries.getAllTeams();
           for (const team of allTeams) {
             if (!team.ft_team_uuid) continue;
-            const { scrapeFtEventSchedule } = require('../scrapers/fivetool');
-            // Extract slug from pg_url
+            const { scrapeFtEventSchedule, ftEventHash } = require('../scrapers/fivetool');
+            // Extract slug + site from pg_url (FT tournaments may live on either FT site)
             const slugMatch = tournament.pg_url?.match(/\/events\/([^/]+)/);
+            const ftBase = tournament.pg_url ? new URL(tournament.pg_url).origin : undefined;
             if (slugMatch) {
-              const games = await scrapeFtEventSchedule(slugMatch[1], team.name);
-              const { ftEventHash } = require('../scrapers/fivetool');
+              const games = await scrapeFtEventSchedule(slugMatch[1], team.name, ftBase);
               for (const g of games) {
                 const sourceKey = `ft-${eventId}-${g.gameDate}-${g.gameTime}-${g.opponentName}`;
                 await queries.upsertFtGame({
@@ -461,8 +461,9 @@ router.get('/tournaments/:eventId/teams', async (req, res) => {
     if (tournament && tournament.source === 'ft') {
       const { scrapeFtEventTeams } = require('../scrapers/fivetool');
       const slugMatch = tournament.pg_url?.match(/\/events\/([^/]+)/);
+      const ftBase = tournament.pg_url ? new URL(tournament.pg_url).origin : undefined;
       if (slugMatch) {
-        const result = await scrapeFtEventTeams(slugMatch[1], ageGroup);
+        const result = await scrapeFtEventTeams(slugMatch[1], ageGroup, ftBase);
         return res.json(result);
       }
       return res.json({ teams: [], venues: [] });

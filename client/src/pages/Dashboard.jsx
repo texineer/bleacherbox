@@ -157,7 +157,7 @@ export default function Dashboard({ orgId, teamId, slug }) {
                 <span className="text-xs font-bold uppercase tracking-wider">Perfect Game</span>
               </a>
               {team?.ft_team_uuid && team?.ft_seasons && (
-                <a href={`https://play.fivetoolyouth.org/team/details/${team.ft_seasons.split(',')[0]}/${team.ft_team_uuid}`}
+                <a href={`${team.ft_base_url || 'https://play.fivetoolyouth.org'}/team/details/${team.ft_seasons.split(',')[0]}/${team.ft_team_uuid}`}
                   target="_blank" rel="noopener"
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl no-underline active:scale-97"
                   style={{ background: 'var(--gold)', color: 'var(--navy)' }}>
