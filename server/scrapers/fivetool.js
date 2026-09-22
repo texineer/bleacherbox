@@ -198,7 +198,7 @@ async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId, ftBase = DEFA
   const html = await fetchRenderedHtml(url);
 
   const $ = cheerio.load(html);
-  const result = { record: null, events: [], games: [], teamName: '' };
+  const result = { record: null, events: [], games: [], players: [], teamName: '' };
 
   // Detect our team name from the page title
   const titleText = $('title').text().trim();
@@ -214,18 +214,43 @@ async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId, ftBase = DEFA
     console.log(`[ft-scraper] Record: ${result.record}`);
   }
 
-  // Parse events and game results from tables
+  // Parse events, game results, and roster rows from tables
+  const cleanText = (s) => (s || '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
   const rows = [];
   $('td[data-title]').closest('tr').each((_, row) => {
     const cells = {};
     $(row).find('td[data-title]').each((_, td) => {
       const title = $(td).attr('data-title');
-      const text = $(td).find('.table-text').text().trim() || $(td).text().trim();
+      const text = cleanText($(td).find('.table-text').text() || $(td).text());
       const link = $(td).find('a').attr('href') || '';
       cells[title] = { text, link };
     });
     if (Object.keys(cells).length > 1) rows.push(cells);
   });
+
+  // Roster rows (identified by the Name column, unique to the roster table)
+  for (const row of rows) {
+    if (!row['Name']) continue;
+    if (!row['Name'].text) continue;
+    const [bats, throws] = (row['H/T']?.text || '').split('/').map(s => s.trim());
+    result.players.push({
+      pgOrgId: orgId,
+      pgTeamId: teamId,
+      name: row['Name'].text,
+      number: row['#']?.text || '',
+      position: [row['Primary Pos']?.text, row['Sec. Pos']?.text].filter(Boolean).join('/'),
+      bats: bats || '',
+      throws: throws || '',
+      gradYear: row['Grad Year - HS']?.text || '',
+      height: row['HEIGHT']?.text || '',
+      weight: row['Weight']?.text || '',
+      hometown: [row['City']?.text, row['State']?.text].filter(Boolean).join(', '),
+    });
+  }
+  console.log(`[ft-scraper] Roster: ${result.players.length} players`);
+  for (const player of result.players) {
+    await queries.upsertPlayer(player);
+  }
 
   // Separate event rows from game rows
   for (const row of rows) {
