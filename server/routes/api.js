@@ -177,6 +177,91 @@ router.post('/teams', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/tournaments/lookup - resolve a pasted PG or Five Tool tournament URL
+// and list the teams registered in it, for the "add a new team" flow.
+router.post('/tournaments/lookup', requireAuth, async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'url required' });
+
+    let parsed;
+    try { parsed = new URL(url); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+
+    const { FT_SITES, eventSlugFromUrl, ftEventHash, scrapeFtEventTeams } = require('../scrapers/fivetool');
+
+    if (Object.values(FT_SITES).includes(parsed.origin)) {
+      const slug = eventSlugFromUrl(url);
+      if (!slug) return res.status(400).json({ error: 'Could not find an event in that URL' });
+      const eventId = ftEventHash(slug);
+      const { teams } = await scrapeFtEventTeams(slug, '', parsed.origin);
+      return res.json({ source: 'ft', eventId, ftBase: parsed.origin, slug, teams });
+    }
+
+    if (parsed.hostname.replace(/^www\./i, '').toLowerCase() === 'perfectgame.org') {
+      const eventId = parseInt(parsed.searchParams.get('event'));
+      if (!eventId) return res.status(400).json({ error: 'Could not find an event ID in that URL' });
+      const { scrapeRegisteredTeams } = require('../scrapers/tournament');
+      const teams = await scrapeRegisteredTeams(eventId);
+      return res.json({ source: 'pg', eventId, teams });
+    }
+
+    return res.status(400).json({ error: 'URL must be a PerfectGame or Five Tool event page' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/teams/from-tournament - register a team picked from a tournament's
+// team list (see /tournaments/lookup) and kick off its first scrape.
+router.post('/teams/from-tournament', requireAuth, async (req, res) => {
+  try {
+    const { source, slug, name, ageGroup, logoUrl, orgId, teamId, teamHref, ftBase } = req.body;
+    if (!slug || !name) return res.status(400).json({ error: 'slug and name required' });
+    if (!/^[a-z0-9-]+$/.test(slug)) return res.status(400).json({ error: 'slug may only contain lowercase letters, numbers, and hyphens' });
+
+    let pgOrgId, pgTeamId, ftTeamUuid = null, ftSeasons = null, ftBaseUrl = null;
+
+    if (source === 'pg') {
+      pgOrgId = Number(orgId);
+      pgTeamId = Number(teamId);
+      if (!Number.isInteger(pgOrgId) || pgOrgId <= 0 || !Number.isInteger(pgTeamId) || pgTeamId <= 0) {
+        return res.status(400).json({ error: 'orgId and teamId required for a PerfectGame team' });
+      }
+    } else if (source === 'ft') {
+      const { teamRefFromUrl, syntheticPgIds } = require('../scrapers/fivetool');
+      const ref = teamRefFromUrl(teamHref);
+      if (!ref) return res.status(400).json({ error: 'Could not parse Five Tool team link' });
+      const ids = syntheticPgIds(ref.teamUuid);
+      pgOrgId = ids.orgId;
+      pgTeamId = ids.teamId;
+      ftTeamUuid = ref.teamUuid;
+      ftSeasons = ref.season;
+      ftBaseUrl = ftBase || new URL(teamHref).origin;
+    } else {
+      return res.status(400).json({ error: "source must be 'pg' or 'ft'" });
+    }
+
+    const existingTeam = await queries.getTeam(pgOrgId, pgTeamId);
+    if (existingTeam && !req.user.is_global_admin) {
+      return res.status(409).json({ error: 'Team already registered' });
+    }
+    const slugOwner = await queries.getTeamBySlug(slug);
+    if (slugOwner && (slugOwner.pg_org_id !== pgOrgId || slugOwner.pg_team_id !== pgTeamId)) {
+      return res.status(409).json({ error: 'That URL is already taken by another team' });
+    }
+
+    await queries.registerTeam({ slug, pgOrgId, pgTeamId, name, ageGroup: ageGroup || '', ftTeamUuid, ftSeasons, ftBaseUrl, logoUrl });
+    await queries.setUserTeamRole(req.user.id, pgOrgId, pgTeamId, 'admin');
+
+    const { scrapeBySlug } = require('../scrapers/run');
+    scrapeBySlug(slug).catch(err => console.error(`[api] Initial scrape failed for ${slug}: ${err.message}`));
+
+    res.json({ status: 'ok', slug });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Pitch count rules by age group
 const PITCH_RULES = {
   '8U':  { dailyMax: 50,  thresholds: [{ pitches: 1, rest: 0 }, { pitches: 21, rest: 1 }, { pitches: 36, rest: 2 }, { pitches: 51, rest: 3 }] },

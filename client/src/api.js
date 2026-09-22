@@ -283,6 +283,14 @@ export function registerTeam(body) {
   return authFetch('POST', '/teams', body);
 }
 
+export function lookupTournament(url) {
+  return authFetch('POST', '/tournaments/lookup', { url });
+}
+
+export function addTeamFromTournament(body) {
+  return authFetch('POST', '/teams/from-tournament', body);
+}
+
 // ── Create manual game (auth required) ────────────────────────────────────────
 
 export function createGame(teamOrgId, teamId, opponentName) {

@@ -23,6 +23,23 @@ function eventSlugFromUrl(eventUrl) {
   return m ? m[1] : '';
 }
 
+// Pull the season + team UUID out of an FT team profile URL (either FT site)
+function teamRefFromUrl(teamUrl) {
+  const m = (teamUrl || '').match(/\/team\/details\/([^/]+)\/([0-9a-f-]{36})/i);
+  return m ? { season: m[1], teamUuid: m[2] } : null;
+}
+
+// Deterministic synthetic pg_org_id/pg_team_id for FT-only teams that have no
+// PerfectGame profile (the teams table's primary key requires both).
+function syntheticPgIds(teamUuid) {
+  const hash = (s) => {
+    let h = 0;
+    for (const ch of s) h = ((h << 5) - h + ch.charCodeAt(0)) | 0;
+    return ((h & 0x7FFFFFFF) % 90000000) + 900000000;
+  };
+  return { orgId: hash('org:' + teamUuid), teamId: hash('team:' + teamUuid) };
+}
+
 function teamUrl(ftBase, season, teamUuid) {
   return `${ftBase}/team/details/${season}/${teamUuid}`;
 }
@@ -411,4 +428,4 @@ async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId, ftBase = DEFA
   return result;
 }
 
-module.exports = { scrapeFiveToolTeam, scrapeFtEventTeams, scrapeFtEventSchedule, FT_SITES, DEFAULT_FT_BASE, ftEventHash, eventSlugFromUrl };
+module.exports = { scrapeFiveToolTeam, scrapeFtEventTeams, scrapeFtEventSchedule, FT_SITES, DEFAULT_FT_BASE, ftEventHash, eventSlugFromUrl, teamRefFromUrl, syntheticPgIds };
