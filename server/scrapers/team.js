@@ -27,6 +27,8 @@ async function scrapeTeamPage(orgId, teamId, year) {
   if (result.team) {
     await queries.upsertTeam(result.team);
     console.log(`[scraper] Team: ${result.team.name} (${result.team.record})`);
+  } else {
+    console.log(`[scraper] No PG team page for ${orgId}/${teamId} (sign-in wall) — leaving existing team info untouched`);
   }
 
   // Parse roster
@@ -59,6 +61,12 @@ function parseTeamInfo($, orgId, teamId, url) {
   // Use page title (more reliable than h1 which may pick up ads)
   let name = '';
   const title = $('title').text().trim();
+
+  // PG redirects unknown/invalid org+team combos to a sign-in wall rather than
+  // a 404. Don't let that page's title clobber the team's real name — bail out
+  // so the caller skips the upsert entirely.
+  if (/sign\s*in/i.test(title)) return null;
+
   if (title) {
     name = title.replace(/\s*[-–]\s*Perfect Game.*$/i, '').trim();
   }
