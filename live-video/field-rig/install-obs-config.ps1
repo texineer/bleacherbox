@@ -72,9 +72,15 @@ Write-Host '  set active profile=GameChanger, scenes=Baseball; browser HW accel 
 
 # Firewall: let the Mevos reach MediaMTX's RTMP port. Needs admin (UAC prompt).
 $exe = "$root\tools\mediamtx\mediamtx.exe"
-if (-not (Get-NetFirewallRule -DisplayName 'MediaMTX RTMP (Mevo)' -ErrorAction SilentlyContinue)) {
+$rule = Get-NetFirewallRule -DisplayName 'MediaMTX RTMP (Mevo)' -ErrorAction SilentlyContinue
+if (-not $rule) {
     Write-Host 'Adding firewall rule (approve the admin prompt)...'
     $cmd = "New-NetFirewallRule -DisplayName 'MediaMTX RTMP (Mevo)' -Direction Inbound -Program '$exe' -Protocol TCP -LocalPort 1935 -Action Allow -Profile Private,Public | Out-Null"
+    Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile', '-Command', $cmd
+} elseif (($rule | Get-NetFirewallApplicationFilter).Program -ne $exe) {
+    # The rule is tied to the relay's path; moving this folder would silently block the Mevos.
+    Write-Host 'Pointing the firewall rule at this folder''s relay (approve the admin prompt)...'
+    $cmd = "Get-NetFirewallRule -DisplayName 'MediaMTX RTMP (Mevo)' | Get-NetFirewallApplicationFilter | Set-NetFirewallApplicationFilter -Program '$exe'"
     Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile', '-Command', $cmd
 }
 if (Get-NetFirewallRule -DisplayName 'MediaMTX RTMP (Mevo)' -ErrorAction SilentlyContinue) {
