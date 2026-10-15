@@ -1,0 +1,83 @@
+<!doctype html>
+<!--
+  Strike zone overlay for the centerfield camera (OBS Browser Source).
+
+  Add as a Browser Source with "Local file" pointing here, OR as a URL like:
+    file:///C:/Users/rpbea/Documents/bleacherbox/live-video/field-rig/overlays/strikezone.html?style=box&grid=1
+
+  The box fills the whole browser source. Set the source's width/height to
+  the zone's rough shape (e.g. 300 x 400), then drag/resize it in OBS to sit
+  over the plate. Line thickness stays constant no matter how you stretch it.
+
+  URL options (all optional):
+    style   = box | corners          (default box)
+    grid    = 0 | 1                  3x3 grid inside the zone (default 0)
+    color   = ffd400 | white | ...   line color, hex without # or a CSS name (default ffd400 yellow)
+    width   = 3                      line thickness in px (default 3)
+    opacity = 0.9                    line opacity 0-1 (default 0.9)
+    fill    = 0.15                   tint inside the zone 0-1, same color as the line (default 0.15; 0 = none)
+    shadow  = 0 | 1                  dark outline so lines show on grass/dirt (default 1)
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Strike Zone</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }
+  #wrap { position: absolute; inset: 0; box-sizing: border-box; }
+  svg { width: 100%; height: 100%; display: block; overflow: visible; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <svg id="zone" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+</div>
+<script>
+  const p = new URLSearchParams(location.search);
+  const num = (k, d) => { const v = parseFloat(p.get(k)); return isNaN(v) ? d : v; };
+
+  let color = p.get('color') || 'ffd400';
+  if (/^[0-9a-f]{3,8}$/i.test(color)) color = '#' + color;
+  const style   = p.get('style') === 'corners' ? 'corners' : 'box';
+  const grid    = p.get('grid') === '1';
+  const width   = num('width', 3);
+  const opacity = num('opacity', 0.9);
+  const fill    = num('fill', 0.15);
+  const shadow  = p.get('shadow') !== '0';
+
+  // Pad by the line width so the outer stroke isn't clipped at the source edge.
+  const wrap = document.getElementById('wrap');
+  wrap.style.padding = width + 'px';
+
+  const svg = document.getElementById('zone');
+  if (shadow) svg.style.filter = 'drop-shadow(0 0 1.5px rgba(0,0,0,.9)) drop-shadow(0 0 1px rgba(0,0,0,.9))';
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const add = (tag, attrs) => {
+    const el = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    el.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(el);
+    return el;
+  };
+  const line = { stroke: color, 'stroke-width': width, 'stroke-opacity': opacity, fill: 'none', 'stroke-linecap': 'square' };
+
+  if (fill > 0) add('rect', { x: 0, y: 0, width: 100, height: 100, fill: color, 'fill-opacity': fill, stroke: 'none' });
+
+  if (style === 'box') {
+    add('rect', { x: 0, y: 0, width: 100, height: 100, ...line });
+  } else {
+    const c = 22; // corner bracket length, % of side
+    add('path', { d: `M0 ${c} V0 H${c} M${100 - c} 0 H100 V${c} M100 ${100 - c} V100 H${100 - c} M${c} 100 H0 V${100 - c}`, ...line });
+  }
+
+  if (grid) {
+    const g = { ...line, 'stroke-width': Math.max(1, width * 0.5), 'stroke-opacity': opacity * 0.7 };
+    for (const t of [100 / 3, 200 / 3]) {
+      add('line', { x1: t, y1: 0, x2: t, y2: 100, ...g });
+      add('line', { x1: 0, y1: t, x2: 100, y2: t, ...g });
+    }
+  }
+</script>
+</body>
+</html>

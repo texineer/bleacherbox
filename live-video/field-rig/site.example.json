@@ -1,0 +1,8 @@
+{
+    "macs":  {
+                 "laptop":  "aa:bb:cc:dd:ee:01",
+                 "vm35":  "aa:bb:cc:dd:ee:04",
+                 "beav":  "aa:bb:cc:dd:ee:02",
+                 "trey":  "aa:bb:cc:dd:ee:03"
+             }
+}

@@ -1,0 +1,9 @@
+{
+    "type": "rtmp_custom",
+    "settings": {
+        "server": "",
+        "key": "",
+        "use_auth": false,
+        "bwtest": false
+    }
+}

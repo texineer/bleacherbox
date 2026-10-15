@@ -4,3 +4,10 @@ client/dist/
 *.db
 .env
 live-video/temp/
+
+# live-video/field-rig: local-only files
+live-video/field-rig/site.local.json
+live-video/field-rig/logs/
+live-video/field-rig/tools/mediamtx/mediamtx.exe
+live-video/field-rig/tools/mediamtx/mediamtx.yml
+live-video/field-rig/**/*.bak

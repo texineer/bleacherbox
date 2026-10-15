@@ -9,6 +9,19 @@ Runs on a Mac Mini M4 at the field (or this LXC container for testing).
 
 ---
 
+## Two parts
+
+| Folder | What it is | Status |
+|---|---|---|
+| [`field-rig/`](field-rig/README.md) | **Game-day streaming**: Mevo + NearStream cameras → MediaMTX relay → OBS (strike zone overlay) → GameChanger over Starlink, with pre-game health checks, an in-game network monitor and post-game reports | In use at games |
+| `ai-service/`, `stream/` (this README) | **AI broadcast overlays**: YOLO player/ball tracking and strike zone, piped to YouTube | Experimental |
+
+They connect through the field rig's relay: it records every camera raw (`Videos\Baseball\raw`) and
+serves each feed at `rtsp://127.0.0.1:8554/<camera>`, so the AI service can read the same feeds
+(`main.py --input rtsp://127.0.0.1:8554/live/mevo1`) or be tuned on recorded footage, without touching the live stream.
+
+---
+
 ## Architecture
 
 ```

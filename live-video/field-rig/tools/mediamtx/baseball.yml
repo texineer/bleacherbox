@@ -1,0 +1,53 @@
+# MediaMTX config for game day: local relay between the cameras and OBS.
+#
+#   Mevo #1 (3B side)  --RTMP-->  rtmp://<laptop-ip>:1935/live/mevo1  --RTSP-->  OBS  rtsp://127.0.0.1:8554/live/mevo1
+#   Mevo #2 (1B side)  --RTMP-->  rtmp://<laptop-ip>:1935/live/mevo2  --RTSP-->  OBS  rtsp://127.0.0.1:8554/live/mevo2
+#   VM35 (centerfield) <--RTSP pulled by MediaMTX--               --RTSP-->  OBS  rtsp://127.0.0.1:8554/vm35
+#
+# Laptop IP on the Slate 7 should be reserved as 172.16.100.10.
+# Run with: tools\mediamtx\mediamtx.exe tools\mediamtx\baseball.yml   (start-game.ps1 does this)
+
+logLevel: info
+
+rtsp: true
+rtspAddress: :8554
+rtspTransports: [tcp]
+
+rtmp: true
+rtmpAddress: :1935
+
+# Not needed for the stream.
+hls: false
+webrtc: false
+srt: false
+moq: false
+metrics: false
+playback: false
+
+# Control API, laptop-only: vm35-release.ps1 / vm35-resume.ps1 use it to free the VM35 for the
+# NearStream app without stopping the Mevo feeds.
+api: true
+apiAddress: 127.0.0.1:9997
+
+# Raw camera recordings (footage for the ball-tracer work, and an ISO backup of every angle).
+# The relay saves each feed as it arrives: no re-encoding, no load on OBS, nothing extra over
+# Starlink. About 2-3 GB per camera per hour; files older than 7 days are deleted automatically.
+# Videos is a local folder (not OneDrive), so nothing tries to upload during a game.
+# To stop recording, set record: no.
+pathDefaults:
+  record: yes
+  recordPath: C:/Users/rpbea/Videos/Baseball/raw/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  recordSegmentDuration: 15m
+  recordDeleteAfter: 7d
+
+paths:
+  # Mevo Starts publish here from the Mevo app (custom RTMP destination).
+  live/mevo1:
+  live/mevo2:
+  # Centerfield camera: MediaMTX pulls it and keeps reconnecting if the link drops.
+  # NearStream format: rtsp://<ip>:554/live/mainstream (verified 2026-10-03; /live/substream doesn't exist).
+  vm35:
+    source: rtsp://172.16.100.50:554/live/mainstream
+    sourceOnDemand: false
+    rtspTransport: tcp
