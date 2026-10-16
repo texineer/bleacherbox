@@ -13,6 +13,7 @@ import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import Account from './pages/Account'
 import Features from './pages/Features'
+import { PrivacyPolicy, TermsOfService } from './pages/Legal'
 import ScoreGame from './pages/ScoreGame'
 import LineupSetup from './pages/LineupSetup'
 import Scorebook from './pages/Scorebook'
@@ -36,6 +37,8 @@ function App() {
         <Route path="/login" element={<Auth />} />
         <Route path="/account" element={<Account />} />
         <Route path="/features" element={<Features />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
         <Route path="/score" element={<ScoreGame />} />
         {/* Team pages — with header/nav */}
         <Route path="/:slug/*" element={<TeamLayout />} />

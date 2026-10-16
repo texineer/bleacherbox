@@ -1,25 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { authConfig } from '../api'
-
-const GSI_SRC = 'https://accounts.google.com/gsi/client'
-
-// Load Google Identity Services once and resolve with window.google.
-function loadGsi() {
-  if (window.google?.accounts?.id) return Promise.resolve(window.google)
-  return new Promise((resolve, reject) => {
-    let script = document.querySelector(`script[src="${GSI_SRC}"]`)
-    if (!script) {
-      script = document.createElement('script')
-      script.src = GSI_SRC
-      script.async = true
-      document.head.appendChild(script)
-    }
-    script.addEventListener('load', () => resolve(window.google))
-    script.addEventListener('error', reject)
-  })
-}
+import GoogleSignInButton from '../components/GoogleSignInButton'
 
 export default function Auth() {
   const [mode, setMode] = useState('login')
@@ -29,50 +11,8 @@ export default function Auth() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
-  const [googleReady, setGoogleReady] = useState(false)
-  const googleButtonRef = useRef(null)
-  const { login, register, loginWithGoogle } = useAuth()
+  const { login, register } = useAuth()
   const navigate = useNavigate()
-
-  // Render the Google button when a client ID is configured on the server.
-  useEffect(() => {
-    let cancelled = false
-    authConfig()
-      .then(({ googleClientId }) => {
-        if (!googleClientId) return
-        return loadGsi().then(google => {
-          if (cancelled || !googleButtonRef.current) return
-          google.accounts.id.initialize({
-            client_id: googleClientId,
-            callback: async ({ credential }) => {
-              setError('')
-              setNotice('')
-              setLoading(true)
-              try {
-                const data = await loginWithGoogle(credential)
-                if (data.pending) setNotice(data.message)
-                else navigate('/')
-              } catch (err) {
-                if (err.pending) setNotice(err.message)
-                else setError(err.message)
-              } finally {
-                setLoading(false)
-              }
-            },
-          })
-          google.accounts.id.renderButton(googleButtonRef.current, {
-            theme: 'outline',
-            size: 'large',
-            text: 'continue_with',
-            shape: 'pill',
-            width: googleButtonRef.current.offsetWidth || 320,
-          })
-          setGoogleReady(true)
-        })
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [loginWithGoogle, navigate])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -137,17 +77,11 @@ export default function Auth() {
           </div>
         )}
 
-        {/* Google sign-in (hidden until the button renders) */}
-        <div style={{ display: googleReady ? 'block' : 'none' }}>
-          <div ref={googleButtonRef} className="flex justify-center" />
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--navy-muted)' }}>
-              or use email
-            </span>
-            <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-          </div>
-        </div>
+        <GoogleSignInButton
+          onStart={() => { setError(''); setNotice(''); setLoading(true) }}
+          onDone={data => { setLoading(false); if (data.pending) setNotice(data.message); else navigate('/') }}
+          onError={err => { setLoading(false); if (err.pending) setNotice(err.message); else setError(err.message) }}
+        />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'register' && (
@@ -201,6 +135,13 @@ export default function Auth() {
             </div>
           )}
 
+          {mode === 'register' && (
+            <p className="text-xs text-center" style={{ color: 'var(--navy-muted)' }}>
+              By creating an account you agree to the{' '}
+              <Link to="/terms" className="font-semibold" style={{ color: 'var(--navy)' }}>Terms of Service</Link> and{' '}
+              <Link to="/privacy" className="font-semibold" style={{ color: 'var(--navy)' }}>Privacy Policy</Link>.
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading}
@@ -220,6 +161,10 @@ export default function Auth() {
       <footer className="text-center py-4 text-[10px] font-semibold uppercase tracking-wider"
         style={{ color: 'var(--navy-muted)' }}>
         BleacherBox
+        <span className="mx-2">·</span>
+        <Link to="/privacy" className="no-underline" style={{ color: 'var(--navy-muted)' }}>Privacy</Link>
+        <span className="mx-2">·</span>
+        <Link to="/terms" className="no-underline" style={{ color: 'var(--navy-muted)' }}>Terms</Link>
       </footer>
     </div>
   )

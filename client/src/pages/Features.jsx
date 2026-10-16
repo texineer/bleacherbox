@@ -151,6 +151,10 @@ export default function Features() {
       <footer className="text-center py-4 text-[10px] font-semibold uppercase tracking-wider"
         style={{ color: 'var(--navy-muted)' }}>
         BleacherBox
+        <span className="mx-2">·</span>
+        <Link to="/privacy" className="no-underline" style={{ color: 'var(--navy-muted)' }}>Privacy</Link>
+        <span className="mx-2">·</span>
+        <Link to="/terms" className="no-underline" style={{ color: 'var(--navy-muted)' }}>Terms</Link>
       </footer>
     </div>
   )
