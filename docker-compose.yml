@@ -13,6 +13,8 @@ services:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
       # Set once to seed the initial global admin; safe to leave unset afterwards.
       - GLOBAL_ADMIN_PASSWORD=${GLOBAL_ADMIN_PASSWORD:-}
+      # OAuth client ID for "Continue with Google"; leave unset to disable.
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
 
 volumes:

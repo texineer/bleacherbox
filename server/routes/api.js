@@ -63,7 +63,7 @@ async function extractYoutubeAudio(videoId, startSeconds, endSeconds, label) {
 }
 const { scrapeAll } = require('../scrapers/run');
 const { scrapeTournamentSchedule } = require('../scrapers/tournament');
-const { requireAuth, requireTeamRole, validateTeamParams } = require('../middleware/auth');
+const { requireAuth, requireTeamRole, requireGlobalAdmin, validateTeamParams } = require('../middleware/auth');
 
 const dataDir = path.join(__dirname, '..', '..', 'data');
 
@@ -943,6 +943,37 @@ router.put('/teams/:orgId/:teamId/members/:userId', requireAdmin, async (req, re
 router.delete('/teams/:orgId/:teamId/members/:userId', requireAdmin, async (req, res) => {
   try {
     await queries.removeUserTeamRole(parseInt(req.params.userId), parseInt(req.params.orgId), parseInt(req.params.teamId));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Account Approval (global admin) ──────────────────────────────────────────
+
+// GET /api/admin/pending-users - sign-ups awaiting approval
+router.get('/admin/pending-users', requireGlobalAdmin, async (req, res) => {
+  try {
+    res.json(await queries.getPendingUsers());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/users/:userId/approve
+router.post('/admin/users/:userId/approve', requireGlobalAdmin, async (req, res) => {
+  try {
+    await queries.approveUser(parseInt(req.params.userId));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/users/:userId - deny (delete) a pending sign-up
+router.delete('/admin/users/:userId', requireGlobalAdmin, async (req, res) => {
+  try {
+    await queries.denyPendingUser(parseInt(req.params.userId));
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

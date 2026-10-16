@@ -93,7 +93,11 @@ async function authFetch(method, url, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({ error: res.statusText }));
-  if (!res.ok) throw new Error(data.error || `API error: ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `API error: ${res.status}`)
+    err.pending = !!data.pending
+    throw err
+  }
   return data;
 }
 
@@ -103,6 +107,14 @@ export function authRegister(email, password, displayName) {
 
 export function authLogin(email, password) {
   return authFetch('POST', '/auth/login', { email, password });
+}
+
+export function authGoogle(credential) {
+  return authFetch('POST', '/auth/google', { credential });
+}
+
+export function authConfig() {
+  return fetchJson('/auth/config');
 }
 
 export function authLogout() {
@@ -115,6 +127,20 @@ export function changePassword(currentPassword, newPassword) {
 
 export function authMe() {
   return fetchJson('/auth/me');
+}
+
+// ── Account Approval (global admin) ──────────────────────────────────────────
+
+export function getPendingUsers() {
+  return fetchJson('/admin/pending-users');
+}
+
+export function approveUser(userId) {
+  return authFetch('POST', `/admin/users/${userId}/approve`);
+}
+
+export function denyUser(userId) {
+  return authFetch('DELETE', `/admin/users/${userId}`);
 }
 
 // ── Team Members ──────────────────────────────────────────────────────────────

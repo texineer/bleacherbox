@@ -679,11 +679,11 @@ async function deletePlaylistSong(id) {
 
 // ── Users & Roles ─────────────────────────────────────────────────────────
 
-async function createUser({ email, passwordHash, displayName }) {
+async function createUser({ email, passwordHash, displayName, googleSub }) {
   const db = await getDb();
   db.run(
-    `INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)`,
-    [email, passwordHash, displayName || null]
+    `INSERT INTO users (email, password_hash, display_name, google_sub, approved) VALUES (?, ?, ?, ?, 0)`,
+    [email, passwordHash || null, displayName || null, googleSub || null]
   );
   const result = db.exec('SELECT last_insert_rowid() as id');
   const id = result[0].values[0][0];
@@ -698,7 +698,36 @@ async function getUserByEmail(email) {
 
 async function getUserById(id) {
   const db = await getDb();
-  return get(db, 'SELECT id, email, display_name, is_global_admin, contact_email, created_at FROM users WHERE id = ?', [id]);
+  return get(db, `SELECT id, email, display_name, is_global_admin, contact_email, created_at, approved,
+    password_hash IS NOT NULL AS has_password, google_sub IS NOT NULL AS has_google
+    FROM users WHERE id = ?`, [id]);
+}
+
+async function getUserByGoogleSub(googleSub) {
+  const db = await getDb();
+  return get(db, 'SELECT * FROM users WHERE google_sub = ?', [googleSub]);
+}
+
+async function linkGoogleAccount(userId, googleSub) {
+  const db = await getDb();
+  run(db, 'UPDATE users SET google_sub = ? WHERE id = ?', [googleSub, userId]);
+}
+
+async function getPendingUsers() {
+  const db = await getDb();
+  return all(db, `SELECT id, email, display_name, created_at, google_sub IS NOT NULL AS has_google
+    FROM users WHERE approved = 0 ORDER BY created_at`);
+}
+
+async function approveUser(id) {
+  const db = await getDb();
+  run(db, 'UPDATE users SET approved = 1 WHERE id = ? AND approved = 0', [id]);
+}
+
+// Only pending accounts can be denied — an approved account is never deleted here.
+async function denyPendingUser(id) {
+  const db = await getDb();
+  run(db, 'DELETE FROM users WHERE id = ? AND approved = 0', [id]);
 }
 
 async function getUserTeamRoles(userId) {
@@ -783,7 +812,7 @@ module.exports = {
   logPitch, getLivePitchCounts, deleteLastPitch, getFullScorebookState, getGameSprayChart, getGameScore, getHalfInningStats,
   touchTournamentLastScraped, claimBracketGamesForTeam, getBracketGames, upsertBracketGame,
   // Auth
-  createUser, getUserByEmail, getUserById, getUserTeamRoles, getUserRoleForTeam,
+  createUser, getUserByEmail, getUserById, getUserByGoogleSub, linkGoogleAccount, getPendingUsers, approveUser, denyPendingUser, getUserTeamRoles, getUserRoleForTeam,
   setUserTeamRole, removeUserTeamRole, getTeamMembers, getTeamFromGameId,
   // Walkup Songs
   getWalkupSong, upsertWalkupSong, deleteWalkupSong,

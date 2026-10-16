@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authMe, authLogin as apiLogin, authRegister as apiRegister, authLogout as apiLogout } from '../api'
+import { authMe, authLogin as apiLogin, authRegister as apiRegister, authGoogle as apiGoogle, authLogout as apiLogout } from '../api'
 
 const AuthContext = createContext(null)
 
@@ -32,6 +32,15 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (email, password, displayName) => {
     const data = await apiRegister(email, password, displayName)
+    if (data.pending) return data
+    setUser(data.user)
+    setRoles(data.roles || [])
+    return data
+  }, [])
+
+  const loginWithGoogle = useCallback(async (credential) => {
+    const data = await apiGoogle(credential)
+    if (data.pending) return data
     setUser(data.user)
     setRoles(data.roles || [])
     return data
@@ -48,6 +57,12 @@ export function AuthProvider({ children }) {
     setRoles(data.roles || [])
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    const data = await authMe()
+    setUser(data.user)
+    setRoles(data.roles || [])
+  }, [])
+
   const hasTeamRole = useCallback((orgId, teamId, allowedRoles) => {
     // Global admins have all roles on all teams
     if (isGlobalAdmin) return true
@@ -57,7 +72,7 @@ export function AuthProvider({ children }) {
   }, [roles, isGlobalAdmin])
 
   return (
-    <AuthContext.Provider value={{ user, roles, loading, login, register, logout, refreshRoles, hasTeamRole, isGlobalAdmin }}>
+    <AuthContext.Provider value={{ user, roles, loading, login, register, loginWithGoogle, logout, refreshRoles, refreshUser, hasTeamRole, isGlobalAdmin }}>
       {children}
     </AuthContext.Provider>
   )

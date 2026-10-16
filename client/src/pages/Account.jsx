@@ -7,7 +7,7 @@ import AddTeamByTournament from '../components/AddTeamByTournament'
 
 export default function Account() {
   const navigate = useNavigate()
-  const { user, roles, logout, refreshRoles, loading: authLoading } = useAuth()
+  const { user, roles, logout, refreshRoles, refreshUser, loading: authLoading } = useAuth()
   const [showAddTeam, setShowAddTeam] = useState(false)
   const [addTeamMode, setAddTeamMode] = useState('join') // 'join' | 'new'
   const [allTeams, setAllTeams] = useState([])
@@ -62,6 +62,7 @@ export default function Account() {
     setPwLoading(true)
     try {
       await changePassword(currentPw, newPw)
+      if (!user.has_password) await refreshUser()
       setPwSuccess(true)
       setCurrentPw('')
       setNewPw('')
@@ -110,21 +111,27 @@ export default function Account() {
           <button onClick={() => { setShowPwChange(v => !v); setPwError(''); setPwSuccess(false) }}
             className="mt-4 text-xs font-bold uppercase tracking-wider"
             style={{ color: 'var(--navy-muted)' }}>
-            {showPwChange ? 'Cancel' : 'Change Password'}
+            {showPwChange ? 'Cancel' : user.has_password ? 'Change Password' : 'Set Password'}
           </button>
 
           {showPwChange && (
             <form onSubmit={handlePasswordChange} className="mt-3 space-y-3">
-              <input type="password" required placeholder="Current password" value={currentPw}
-                onChange={e => setCurrentPw(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border text-sm focus:outline-none"
-                style={{ borderColor: 'var(--border)', color: 'var(--navy)' }} />
+              {user.has_password ? (
+                <input type="password" required placeholder="Current password" value={currentPw}
+                  onChange={e => setCurrentPw(e.target.value)}
+                  className="w-full h-10 px-3 rounded-lg border text-sm focus:outline-none"
+                  style={{ borderColor: 'var(--border)', color: 'var(--navy)' }} />
+              ) : (
+                <div className="text-xs" style={{ color: 'var(--navy-muted)' }}>
+                  You sign in with Google. Set a password to also sign in with your email.
+                </div>
+              )}
               <input type="password" required minLength={8} placeholder="New password (min 8 chars)" value={newPw}
                 onChange={e => setNewPw(e.target.value)}
                 className="w-full h-10 px-3 rounded-lg border text-sm focus:outline-none"
                 style={{ borderColor: 'var(--border)', color: 'var(--navy)' }} />
               {pwError && <div className="text-xs font-semibold" style={{ color: 'var(--loss)' }}>{pwError}</div>}
-              {pwSuccess && <div className="text-xs font-semibold" style={{ color: 'var(--win)' }}>Password changed!</div>}
+              {pwSuccess && <div className="text-xs font-semibold" style={{ color: 'var(--win)' }}>Password saved!</div>}
               <button type="submit" disabled={pwLoading}
                 className="h-10 px-4 rounded-lg font-display text-sm tracking-wider text-white active:scale-95"
                 style={{ background: pwLoading ? 'var(--navy-muted)' : 'var(--navy)' }}>

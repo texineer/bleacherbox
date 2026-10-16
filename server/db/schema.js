@@ -313,7 +313,7 @@ function initSchema() {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
+      password_hash TEXT,
       display_name TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
@@ -348,6 +348,51 @@ function initSchema() {
   // Migration: add global admin and contact email fields to users
   try { db.run("ALTER TABLE users ADD COLUMN is_global_admin INTEGER NOT NULL DEFAULT 0"); } catch(e) {}
   try { db.run("ALTER TABLE users ADD COLUMN contact_email TEXT"); } catch(e) {}
+
+  // Migration: Google sign-in. Google-only accounts have no password, so
+  // password_hash must be nullable. SQLite can't drop NOT NULL in place, so
+  // rebuild the table. Foreign keys are switched off for the swap — otherwise
+  // DROP TABLE users would cascade-delete every user_team_roles row.
+  try { db.run("ALTER TABLE users ADD COLUMN google_sub TEXT"); } catch(e) {}
+
+  // Migration: new accounts need global-admin approval before they can sign in.
+  // The column defaults to 1 so every pre-existing account stays approved;
+  // createUser inserts new sign-ups with approved = 0.
+  try { db.run("ALTER TABLE users ADD COLUMN approved INTEGER NOT NULL DEFAULT 1"); } catch(e) {}
+  // PRAGMA table_info columns: cid, name, type, notnull, dflt_value, pk
+  const userCols = db.exec('PRAGMA table_info(users)')[0].values;
+  const pwCol = userCols.find(c => c[1] === 'password_hash');
+  if (pwCol && pwCol[3]) {
+    db.run('PRAGMA foreign_keys = OFF');
+    db.run('BEGIN');
+    try {
+      db.run(`
+        CREATE TABLE users_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT NOT NULL UNIQUE,
+          password_hash TEXT,
+          display_name TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          is_global_admin INTEGER NOT NULL DEFAULT 0,
+          contact_email TEXT,
+          google_sub TEXT,
+          approved INTEGER NOT NULL DEFAULT 1
+        )
+      `);
+      db.run(`
+        INSERT INTO users_new (id, email, password_hash, display_name, created_at, is_global_admin, contact_email, google_sub, approved)
+        SELECT id, email, password_hash, display_name, created_at, is_global_admin, contact_email, google_sub, approved FROM users
+      `);
+      db.run('DROP TABLE users');
+      db.run('ALTER TABLE users_new RENAME TO users');
+      db.run('COMMIT');
+    } catch (e) {
+      db.run('ROLLBACK');
+      throw e;
+    }
+    db.run('PRAGMA foreign_keys = ON');
+  }
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub)');
 
   // Migration: add baseball card image path to players
   try { db.run("ALTER TABLE players ADD COLUMN card_image_path TEXT"); } catch(e) {}
@@ -390,7 +435,7 @@ async function seedGlobalAdmin() {
   // If the admin already exists, just ensure the flag is set — never touch the password.
   const existing = db.exec('SELECT id FROM users WHERE email = ?', [email]);
   if (existing.length > 0 && existing[0].values.length > 0) {
-    db.run('UPDATE users SET is_global_admin = 1, contact_email = ? WHERE email = ?', [contactEmail, email]);
+    db.run('UPDATE users SET is_global_admin = 1, approved = 1, contact_email = ? WHERE email = ?', [contactEmail, email]);
     saveDb();
     return;
   }

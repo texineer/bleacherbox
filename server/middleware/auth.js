@@ -1,8 +1,14 @@
 const queries = require('../db/queries');
 
+// Accounts awaiting admin approval are treated as signed out.
+async function getApprovedUser(id) {
+  const user = await queries.getUserById(id);
+  return user?.approved ? user : null;
+}
+
 async function loadUser(req) {
   if (!req.user && req.session?.userId) {
-    req.user = await queries.getUserById(req.session.userId);
+    req.user = await getApprovedUser(req.session.userId);
   }
   return req.user;
 }
@@ -67,7 +73,8 @@ function requireTeamRole(allowedRoles) {
   };
 }
 
-function requireGlobalAdmin(req, res, next) {
+async function requireGlobalAdmin(req, res, next) {
+  await loadUser(req);
   if (!req.user?.is_global_admin) {
     return res.status(403).json({ error: 'Global admin access required' });
   }
@@ -90,7 +97,7 @@ function validateTeamParams(req, res, next) {
 
 async function optionalAuth(req, res, next) {
   if (req.session?.userId) {
-    req.user = await queries.getUserById(req.session.userId);
+    req.user = await getApprovedUser(req.session.userId);
   } else {
     req.user = null;
   }

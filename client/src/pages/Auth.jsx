@@ -1,6 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { authConfig } from '../api'
+
+const GSI_SRC = 'https://accounts.google.com/gsi/client'
+
+// Load Google Identity Services once and resolve with window.google.
+function loadGsi() {
+  if (window.google?.accounts?.id) return Promise.resolve(window.google)
+  return new Promise((resolve, reject) => {
+    let script = document.querySelector(`script[src="${GSI_SRC}"]`)
+    if (!script) {
+      script = document.createElement('script')
+      script.src = GSI_SRC
+      script.async = true
+      document.head.appendChild(script)
+    }
+    script.addEventListener('load', () => resolve(window.google))
+    script.addEventListener('error', reject)
+  })
+}
 
 export default function Auth() {
   const [mode, setMode] = useState('login')
@@ -8,23 +27,73 @@ export default function Auth() {
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login, register } = useAuth()
+  const [googleReady, setGoogleReady] = useState(false)
+  const googleButtonRef = useRef(null)
+  const { login, register, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
+
+  // Render the Google button when a client ID is configured on the server.
+  useEffect(() => {
+    let cancelled = false
+    authConfig()
+      .then(({ googleClientId }) => {
+        if (!googleClientId) return
+        return loadGsi().then(google => {
+          if (cancelled || !googleButtonRef.current) return
+          google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: async ({ credential }) => {
+              setError('')
+              setNotice('')
+              setLoading(true)
+              try {
+                const data = await loginWithGoogle(credential)
+                if (data.pending) setNotice(data.message)
+                else navigate('/')
+              } catch (err) {
+                if (err.pending) setNotice(err.message)
+                else setError(err.message)
+              } finally {
+                setLoading(false)
+              }
+            },
+          })
+          google.accounts.id.renderButton(googleButtonRef.current, {
+            theme: 'outline',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'pill',
+            width: googleButtonRef.current.offsetWidth || 320,
+          })
+          setGoogleReady(true)
+        })
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [loginWithGoogle, navigate])
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    setNotice('')
     setLoading(true)
     try {
       if (mode === 'login') {
         await login(email, password)
       } else {
-        await register(email, password, displayName)
+        const data = await register(email, password, displayName)
+        if (data.pending) {
+          setNotice(data.message)
+          setPassword('')
+          return
+        }
       }
       navigate('/')
     } catch (err) {
-      setError(err.message)
+      if (err.pending) setNotice(err.message)
+      else setError(err.message)
     } finally {
       setLoading(false)
     }
@@ -55,10 +124,29 @@ export default function Auth() {
                 background: mode === m ? 'var(--navy)' : 'transparent',
                 color: mode === m ? 'white' : 'var(--navy-muted)',
               }}
-              onClick={() => { setMode(m); setError('') }}>
+              onClick={() => { setMode(m); setError(''); setNotice('') }}>
               {m === 'login' ? 'SIGN IN' : 'REGISTER'}
             </button>
           ))}
+        </div>
+
+        {notice && (
+          <div className="text-sm font-semibold text-center py-3 px-3 rounded-lg mb-6"
+            style={{ color: 'var(--navy)', background: 'var(--sky)', border: '2px solid var(--border)' }}>
+            {notice}
+          </div>
+        )}
+
+        {/* Google sign-in (hidden until the button renders) */}
+        <div style={{ display: googleReady ? 'block' : 'none' }}>
+          <div ref={googleButtonRef} className="flex justify-center" />
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--navy-muted)' }}>
+              or use email
+            </span>
+            <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
