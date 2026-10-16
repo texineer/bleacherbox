@@ -1,3 +1,7 @@
+// Load settings from the project-root .env if present (real environment
+// variables win). Must run before the routes are required.
+try { process.loadEnvFile(require('path').join(__dirname, '..', '.env')); } catch (e) {}
+
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
