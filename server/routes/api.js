@@ -1096,6 +1096,26 @@ router.post('/admin/teams', requireGlobalAdmin, async (req, res) => {
   }
 });
 
+// DELETE /api/admin/teams/:orgId/:teamId - delete a team, its data, and its
+// uploaded walkup audio and baseball cards
+router.delete('/admin/teams/:orgId/:teamId', validateTeamParams, requireGlobalAdmin, async (req, res) => {
+  try {
+    const orgId = parseInt(req.params.orgId);
+    const teamId = parseInt(req.params.teamId);
+    const team = await queries.getTeam(orgId, teamId);
+    if (!team?.slug) return res.status(404).json({ error: 'Team not found' });
+
+    await queries.deleteTeam(orgId, teamId);
+    for (const kind of ['walkups', 'cards']) {
+      fs.rmSync(path.join(dataDir, kind, String(orgId), String(teamId)), { recursive: true, force: true });
+    }
+    console.log(`[admin] Deleted team ${team.slug} (${orgId}/${teamId})`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/teams/:orgId/:teamId/join - self-join as viewer
 router.post('/teams/:orgId/:teamId/join', requireAuth, async (req, res) => {
   try {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { getTeams, triggerScrape, adminLookupTeam, adminAddTeam } from '../api'
+import { getTeams, triggerScrape, adminLookupTeam, adminAddTeam, adminDeleteTeam } from '../api'
 import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 import PendingAccounts from '../components/PendingAccounts'
@@ -185,8 +185,25 @@ function AddTeamByUrl({ onAdded }) {
   )
 }
 
-function TeamList({ teams, loading }) {
+function TeamList({ teams, loading, onDeleted }) {
   const [refreshing, setRefreshing] = useState({})
+  const [deleting, setDeleting] = useState(null)
+  const [error, setError] = useState('')
+
+  async function handleDelete(team) {
+    const name = team.name || team.slug
+    if (!confirm(`Delete ${name}?\n\nThis permanently removes its games, roster, scorebooks, walkup songs and baseball cards, and removes it from everyone's teams. This can't be undone.`)) return
+    setError('')
+    setDeleting(team.slug)
+    try {
+      await adminDeleteTeam(team.pg_org_id, team.pg_team_id)
+      onDeleted?.()
+    } catch (err) {
+      setError(`Couldn't delete ${name}: ${err.message}`)
+    } finally {
+      setDeleting(null)
+    }
+  }
 
   async function handleRefresh(slug) {
     setRefreshing(r => ({ ...r, [slug]: true }))
@@ -201,6 +218,7 @@ function TeamList({ teams, loading }) {
   return (
     <div>
       <div className="section-label mb-3">ALL TEAMS ({teams.length})</div>
+      {error && <div className="text-sm font-semibold mb-2" style={{ color: 'var(--loss)' }}>{error}</div>}
       <div className="card overflow-hidden">
         {loading && <div className="p-4"><LoadingSpinner /></div>}
         {!loading && teams.length === 0 && (
@@ -230,6 +248,11 @@ function TeamList({ teams, loading }) {
               className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0"
               style={{ background: 'var(--sky)', color: 'var(--navy)' }}>
               {refreshing[t.slug] ? 'Started' : 'Refresh'}
+            </button>
+            <button onClick={() => handleDelete(t)} disabled={deleting === t.slug}
+              className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0"
+              style={{ background: 'var(--loss-bg, #fdecea)', color: 'var(--loss)' }}>
+              {deleting === t.slug ? '…' : 'Delete'}
             </button>
           </div>
         ))}
@@ -282,7 +305,7 @@ export default function Admin() {
               <AddTeamByTournament onAdded={loadTeams} />
             </details>
 
-            <TeamList teams={teams} loading={loadingTeams} />
+            <TeamList teams={teams} loading={loadingTeams} onDeleted={loadTeams} />
 
             <PendingAccounts />
           </>

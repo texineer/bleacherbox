@@ -327,6 +327,10 @@ export function adminAddTeam(body) {
   return authFetch('POST', '/admin/teams', body);
 }
 
+export function adminDeleteTeam(orgId, teamId) {
+  return authFetch('DELETE', `/admin/teams/${orgId}/${teamId}`);
+}
+
 // ── Create manual game (auth required) ────────────────────────────────────────
 
 export function createGame(teamOrgId, teamId, opponentName) {

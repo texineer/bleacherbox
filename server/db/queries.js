@@ -49,6 +49,30 @@ async function setTeamFiveTool(pgOrgId, pgTeamId, { ftTeamUuid, ftSeasons, ftBas
     [ftTeamUuid, ftSeasons, ftBaseUrl, pgOrgId, pgTeamId]);
 }
 
+// Delete a team and everything that belongs only to it: roster, media settings,
+// games and their scorebook data, and every user's role on it. Tournaments and
+// tournament-wide pitch reports are shared with other teams and are kept.
+async function deleteTeam(pgOrgId, pgTeamId) {
+  const db = await getDb();
+  const team = [pgOrgId, pgTeamId];
+  const gamesOfTeam = 'SELECT id FROM games WHERE team_org_id = ? AND team_id = ?';
+  db.run('BEGIN');
+  try {
+    for (const table of ['game_scorebook', 'lineup_entries', 'inning_scores', 'plate_appearances', 'live_pitches', 'pitch_counts']) {
+      db.run(`DELETE FROM ${table} WHERE game_id IN (${gamesOfTeam})`, team);
+    }
+    db.run('DELETE FROM games WHERE team_org_id = ? AND team_id = ?', team);
+    for (const table of ['players', 'player_walkup_songs', 'team_soundboard', 'team_playlist', 'team_tournaments', 'team_stream_config', 'user_team_roles', 'teams']) {
+      db.run(`DELETE FROM ${table} WHERE pg_org_id = ? AND pg_team_id = ?`, team);
+    }
+    db.run('COMMIT');
+  } catch (err) {
+    db.run('ROLLBACK');
+    throw err;
+  }
+  saveDb();
+}
+
 async function getTeamBySlug(slug) {
   const db = await getDb();
   return get(db, 'SELECT * FROM teams WHERE slug = ?', [slug]);
@@ -808,7 +832,7 @@ async function setStreamConfig(orgId, teamId, youtubeUrl, isLive) {
 }
 
 module.exports = {
-  upsertTeam, getTeam, getTeamBySlug, getTeamByFtUuid, setTeamFiveTool, getAllTeams, registerTeam, searchTeams,
+  upsertTeam, getTeam, getTeamBySlug, getTeamByFtUuid, deleteTeam, setTeamFiveTool, getAllTeams, registerTeam, searchTeams,
   upsertPlayer, getPlayers, setPlayerCardPath,
   upsertTournament, linkTeamTournament, getTeamTournaments, getTournament,
   upsertGame, createManualGame, getTeamGames, getGame, getGameByPgId, getTournamentGames,
