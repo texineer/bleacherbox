@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { ENABLED } from '../features'
 
 const FEATURES = [
   {
@@ -23,6 +24,7 @@ const FEATURES = [
   },
   {
     icon: '🎵',
+    feature: 'dj',
     title: 'Walkup Songs & DJ',
     description: 'Set a walkup song for each player from YouTube. The BleacherBox DJ plays the song with a stadium-style PA announcement — "Now batting, number 7, Mason Clark!"',
   },
@@ -61,6 +63,7 @@ const FAQ = [
     a: 'Yes! Go to your Account page and tap "Add Team" to follow as many teams as you like. Switch between them using the dropdown in the header.',
   },
   {
+    feature: 'dj',
     q: 'How do walkup songs work?',
     a: 'Go to the Roster page, find a player, and add a YouTube link for their walkup song. Set the start and end time for the clip. On the DJ page, tap the player to hear their announcement and song.',
   },
@@ -102,7 +105,7 @@ export default function Features() {
 
         {/* Feature cards */}
         <div className="space-y-3">
-          {FEATURES.map((f, i) => (
+          {FEATURES.filter(f => !f.feature || ENABLED[f.feature]).map((f, i) => (
             <div key={i} className="card p-4 card-enter" style={{ animationDelay: `${i * 50}ms` }}>
               <div className="flex gap-3">
                 <span className="text-2xl flex-shrink-0 mt-0.5">{f.icon}</span>
@@ -119,7 +122,7 @@ export default function Features() {
         <div>
           <div className="section-label mb-3">FREQUENTLY ASKED QUESTIONS</div>
           <div className="space-y-2">
-            {FAQ.map((item, i) => (
+            {FAQ.filter(item => !item.feature || ENABLED[item.feature]).map((item, i) => (
               <details key={i} className="card overflow-hidden group">
                 <summary className="px-4 py-3 cursor-pointer flex items-center justify-between font-semibold text-sm"
                   style={{ color: 'var(--navy)' }}>

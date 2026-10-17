@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Link, useLocation, useParams, useNavigate } from 'react-router-dom'
+import { Routes, Route, Link, Navigate, useLocation, useParams, useNavigate } from 'react-router-dom'
 import { getTeamBySlug } from './api'
 import { useAuth } from './context/AuthContext'
 import Dashboard from './pages/Dashboard'
@@ -26,6 +26,7 @@ import Lunch from './pages/Lunch'
 import BaseballCard from './pages/BaseballCard'
 import Stream from './pages/Stream'
 import LoadingSpinner from './components/LoadingSpinner'
+import { ENABLED } from './features'
 
 function App() {
   const location = useLocation()
@@ -84,10 +85,10 @@ function TeamLayout() {
 
   const navItems = [
     { path: `/${slug}`, label: 'Home', icon: HomeIcon },
-    { path: `/${slug}/dj`, label: 'DJ', icon: DJIcon },
-    { path: `/${slug}/lunch`, label: 'Lunch', icon: LunchIcon },
+    ...(ENABLED.dj ? [{ path: `/${slug}/dj`, label: 'DJ', icon: DJIcon }] : []),
+    ...(ENABLED.lunch ? [{ path: `/${slug}/lunch`, label: 'Lunch', icon: LunchIcon }] : []),
     { path: `/${slug}/stream`, label: 'Stream', icon: StreamIcon },
-    { path: `/${slug}/baseball-card`, label: 'Card', icon: CardIcon },
+    ...(ENABLED.baseballCard ? [{ path: `/${slug}/baseball-card`, label: 'Card', icon: CardIcon }] : []),
     ...(isAdmin ? [{ path: `/${slug}/members`, label: 'Members', icon: MembersIcon }] : []),
     { path: `/${slug}/search`, label: 'Teams', icon: SearchIcon },
   ]
@@ -160,11 +161,13 @@ function TeamLayout() {
           <Route path="/tournament/:eventId/bracket" element={<TournamentBracket />} />
           <Route path="/search" element={<TeamSearch />} />
           <Route path="/roster" element={<Roster />} />
-          <Route path="/dj" element={<BleacherBoxDJ orgId={team.pg_org_id} teamId={team.pg_team_id} slug={slug} />} />
-          <Route path="/lunch" element={<Lunch />} />
+          {ENABLED.dj && <Route path="/dj" element={<BleacherBoxDJ orgId={team.pg_org_id} teamId={team.pg_team_id} slug={slug} />} />}
+          {ENABLED.lunch && <Route path="/lunch" element={<Lunch />} />}
           <Route path="/members" element={<TeamMembers orgId={team.pg_org_id} teamId={team.pg_team_id} />} />
-          <Route path="/baseball-card" element={<BaseballCard orgId={team.pg_org_id} teamId={team.pg_team_id} />} />
+          {ENABLED.baseballCard && <Route path="/baseball-card" element={<BaseballCard orgId={team.pg_org_id} teamId={team.pg_team_id} />} />}
           <Route path="/stream" element={<Stream orgId={team.pg_org_id} teamId={team.pg_team_id} />} />
+          {/* Hidden or unknown team pages (e.g. an old /dj link) go to the team home */}
+          <Route path="*" element={<Navigate to={`/${slug}`} replace />} />
         </Routes>
       </main>
 

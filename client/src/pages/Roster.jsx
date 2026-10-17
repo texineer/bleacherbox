@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getTeamBySlug } from '../api'
 import { useAuth } from '../context/AuthContext'
 import WalkupSongManager from '../components/WalkupSongManager'
+import { ENABLED } from '../features'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 const PG_BASE = 'https://www.perfectgame.org'
@@ -114,13 +115,15 @@ export default function Roster() {
                       <span className="text-[10px]" style={{ color: 'var(--navy-muted)' }}>{p.height}</span>
                     )}
                   </div>
-                  <WalkupSongManager
-                    orgId={team.pg_org_id}
-                    teamId={team.pg_team_id}
-                    playerName={p.name}
-                    playerNumber={p.number}
-                    canEdit={canEdit}
-                  />
+                  {ENABLED.dj && (
+                    <WalkupSongManager
+                      orgId={team.pg_org_id}
+                      teamId={team.pg_team_id}
+                      playerName={p.name}
+                      playerNumber={p.number}
+                      canEdit={canEdit}
+                    />
+                  )}
                 </div>
               </div>
             </div>

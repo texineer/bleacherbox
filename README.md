@@ -40,6 +40,9 @@ docker-compose up -d
 3. **Data is cached** in a local SQLite database
 4. **Auto-refreshes** every 6 hours via cron, or manually via the Refresh button
 
+Some finished features (DJ and walkup songs, Lunch, Baseball cards) are hidden for now. See
+[docs/hidden-features.md](docs/hidden-features.md) for what they include and how to turn them back on.
+
 ## API Endpoints
 
 | Endpoint | Description |
