@@ -50,10 +50,25 @@ async function fetchRenderedHtml(url, { waitFor = 'networkidle', timeout = 30000
 }
 
 async function closeBrowser() {
+  clearTimeout(idleTimer);
   if (browser) {
     await browser.close();
     browser = null;
   }
 }
 
-module.exports = { getBrowser, fetchRenderedHtml, closeBrowser };
+// Close the browser once nothing has used it for a while, so a one-off fetch
+// doesn't leave Chromium holding memory. Contexts still open (e.g. a Five Tool
+// scrape in progress) postpone the close.
+let idleTimer = null;
+function scheduleIdleClose(ms = 60000) {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (!browser) return;
+    if (browser.contexts().length > 0) return scheduleIdleClose(ms);
+    closeBrowser().catch(() => {});
+  }, ms);
+  idleTimer.unref();
+}
+
+module.exports = { getBrowser, fetchRenderedHtml, closeBrowser, scheduleIdleClose };

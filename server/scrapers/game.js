@@ -1,5 +1,5 @@
-const axios = require('axios');
 const cheerio = require('cheerio');
+const { fetchPgHtml } = require('./pgFetch');
 const { PG_BASE } = require('./team');
 
 // Scrape final score from DiamondKast game page
@@ -7,12 +7,7 @@ async function scrapeGameScore(pgGameId) {
   const url = `${PG_BASE}/DiamondKast/Game.aspx?gameid=${pgGameId}`;
 
   try {
-    const { data: html } = await axios.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      timeout: 30000,
-    });
+    const html = await fetchPgHtml(url);
 
     const $ = cheerio.load(html);
 

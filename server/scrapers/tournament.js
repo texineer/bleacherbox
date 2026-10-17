@@ -1,5 +1,5 @@
-const axios = require('axios');
 const cheerio = require('cheerio');
+const { fetchPgHtml } = require('./pgFetch');
 const queries = require('../db/queries');
 const { PG_BASE } = require('./team');
 
@@ -7,12 +7,7 @@ async function scrapeTournamentPage(eventId) {
   const url = `${PG_BASE}/events/Default.aspx?event=${eventId}`;
   console.log(`[scraper] Fetching tournament page: ${url}`);
 
-  const { data: html } = await axios.get(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    },
-    timeout: 30000,
-  });
+  const html = await fetchPgHtml(url);
 
   const $ = cheerio.load(html);
 
@@ -104,12 +99,7 @@ async function scrapePitchingReport(eventId) {
   console.log(`[scraper] Fetching pitching report: ${url}`);
 
   try {
-    const { data: html } = await axios.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      timeout: 30000,
-    });
+    const html = await fetchPgHtml(url);
 
     const $ = cheerio.load(html);
     const entries = parsePitchingRestrictions($, eventId);
@@ -214,12 +204,7 @@ async function scrapeTournamentSchedule(eventId) {
   console.log(`[scraper] Fetching tournament schedule: ${url}`);
 
   try {
-    const { data: html } = await axios.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      timeout: 30000,
-    });
+    const html = await fetchPgHtml(url);
 
     const $ = cheerio.load(html);
     const games = [];
@@ -339,12 +324,7 @@ async function scrapeRegisteredTeams(eventId) {
   console.log(`[scraper] Fetching registered teams: ${url}`);
 
   try {
-    const { data: html } = await axios.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      timeout: 30000,
-    });
+    const html = await fetchPgHtml(url);
 
     const $ = cheerio.load(html);
     const teams = new Map(); // dedup by orgId-teamId
@@ -383,12 +363,7 @@ async function scrapeBracketGames(eventId) {
   console.log(`[scraper] Fetching bracket page: ${url}`);
 
   try {
-    const { data: html } = await axios.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      timeout: 30000,
-    });
+    const html = await fetchPgHtml(url);
 
     const $ = cheerio.load(html);
     const games = [];
@@ -507,10 +482,7 @@ async function scrapeTournamentScheduleFull(eventId) {
 
   try {
     // First, get the page to find all date tabs
-    const { data: html } = await axios.get(baseUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
-      timeout: 30000,
-    });
+    const html = await fetchPgHtml(baseUrl);
     const $first = cheerio.load(html);
 
     // Find all date links
@@ -538,11 +510,7 @@ async function scrapeTournamentScheduleFull(eventId) {
 
       let pageHtml = html;
       if (dateStr && dateStr !== [...dates][0]) {
-        const resp = await axios.get(url, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-          timeout: 30000,
-        });
-        pageHtml = resp.data;
+        pageHtml = await fetchPgHtml(url);
       }
 
       const $ = cheerio.load(pageHtml);

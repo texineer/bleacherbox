@@ -1,5 +1,5 @@
-const axios = require('axios');
 const cheerio = require('cheerio');
+const { fetchPgHtml } = require('./pgFetch');
 const queries = require('../db/queries');
 
 const PG_BASE = 'https://www.perfectgame.org';
@@ -12,12 +12,7 @@ async function scrapeTeamPage(orgId, teamId, year) {
   const url = teamUrl(orgId, teamId, year);
   console.log(`[scraper] Fetching team page: ${url}`);
 
-  const { data: html } = await axios.get(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    },
-    timeout: 30000,
-  });
+  const html = await fetchPgHtml(url);
 
   const $ = cheerio.load(html);
   const result = { team: null, players: [], tournaments: [], games: [] };
