@@ -147,8 +147,8 @@ router.get('/teams/by-slug/:slug', async (req, res) => {
   }
 });
 
-// POST /api/teams - register a new team (requires auth, creator becomes admin)
-router.post('/teams', requireAuth, async (req, res) => {
+// POST /api/teams - register a new team by IDs (global admin only)
+router.post('/teams', requireGlobalAdmin, async (req, res) => {
   try {
     const { slug, pgOrgId, pgTeamId, name, ageGroup, ftTeamUuid, ftSeasons, ftBaseUrl, logoUrl } = req.body;
     if (!slug || !pgOrgId || !pgTeamId) return res.status(400).json({ error: 'slug, pgOrgId, pgTeamId required' });
@@ -160,17 +160,7 @@ router.post('/teams', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'pgOrgId and pgTeamId must be positive integers' });
     }
 
-    // Prevent takeover: only a global admin may re-register (and thus re-slug /
-    // grant themselves admin over) a team that already exists. Open registration
-    // is limited to genuinely new teams.
-    const existing = await queries.getTeam(orgId, teamId);
-    if (existing && !req.user.is_global_admin) {
-      return res.status(409).json({ error: 'Team already registered' });
-    }
-
     await queries.registerTeam({ slug, pgOrgId: orgId, pgTeamId: teamId, name: name || '', ageGroup: ageGroup || '', ftTeamUuid, ftSeasons, ftBaseUrl, logoUrl });
-    // Auto-assign admin role to creator
-    await queries.setUserTeamRole(req.user.id, orgId, teamId, 'admin');
     res.json({ status: 'ok', slug });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -178,8 +168,8 @@ router.post('/teams', requireAuth, async (req, res) => {
 });
 
 // POST /api/tournaments/lookup - resolve a pasted PG or Five Tool tournament URL
-// and list the teams registered in it, for the "add a new team" flow.
-router.post('/tournaments/lookup', requireAuth, async (req, res) => {
+// and list the teams registered in it, for the admin's "add from tournament" flow.
+router.post('/tournaments/lookup', requireGlobalAdmin, async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'url required' });
@@ -212,8 +202,8 @@ router.post('/tournaments/lookup', requireAuth, async (req, res) => {
 });
 
 // POST /api/teams/from-tournament - register a team picked from a tournament's
-// team list (see /tournaments/lookup) and kick off its first scrape.
-router.post('/teams/from-tournament', requireAuth, async (req, res) => {
+// team list (see /tournaments/lookup) and kick off its first scrape. Global admin only.
+router.post('/teams/from-tournament', requireGlobalAdmin, async (req, res) => {
   try {
     const { source, slug, name, ageGroup, logoUrl, orgId, teamId, teamHref, ftBase } = req.body;
     if (!slug || !name) return res.status(400).json({ error: 'slug and name required' });
@@ -241,17 +231,12 @@ router.post('/teams/from-tournament', requireAuth, async (req, res) => {
       return res.status(400).json({ error: "source must be 'pg' or 'ft'" });
     }
 
-    const existingTeam = await queries.getTeam(pgOrgId, pgTeamId);
-    if (existingTeam && !req.user.is_global_admin) {
-      return res.status(409).json({ error: 'Team already registered' });
-    }
     const slugOwner = await queries.getTeamBySlug(slug);
     if (slugOwner && (slugOwner.pg_org_id !== pgOrgId || slugOwner.pg_team_id !== pgTeamId)) {
       return res.status(409).json({ error: 'That URL is already taken by another team' });
     }
 
     await queries.registerTeam({ slug, pgOrgId, pgTeamId, name, ageGroup: ageGroup || '', ftTeamUuid, ftSeasons, ftBaseUrl, logoUrl });
-    await queries.setUserTeamRole(req.user.id, pgOrgId, pgTeamId, 'admin');
 
     const { scrapeBySlug } = require('../scrapers/run');
     scrapeBySlug(slug).catch(err => console.error(`[api] Initial scrape failed for ${slug}: ${err.message}`));
@@ -975,6 +960,137 @@ router.delete('/admin/users/:userId', requireGlobalAdmin, async (req, res) => {
   try {
     await queries.denyPendingUser(parseInt(req.params.userId));
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Team Catalog (global admin) ──────────────────────────────────────────────
+// The global admin adds teams from their Perfect Game and/or Five Tool team
+// page URLs; everyone else picks teams to follow from that list.
+
+function parsePgTeamUrl(url) {
+  let u;
+  try { u = new URL(url); } catch { return null; }
+  if (u.hostname.replace(/^www\./i, '').toLowerCase() !== 'perfectgame.org') return null;
+  const param = name => {
+    for (const [k, v] of u.searchParams) if (k.toLowerCase() === name) return v;
+    return null;
+  };
+  const orgId = Number(param('orgid'));
+  const teamId = Number(param('orgteamid'));
+  if (!Number.isInteger(orgId) || orgId <= 0 || !Number.isInteger(teamId) || teamId <= 0) return null;
+  return { orgId, teamId };
+}
+
+function parseFtTeamUrl(url) {
+  const { FT_SITES, teamRefFromUrl } = require('../scrapers/fivetool');
+  let u;
+  try { u = new URL(url); } catch { return null; }
+  if (!Object.values(FT_SITES).includes(u.origin)) return null;
+  const ref = teamRefFromUrl(url);
+  return ref ? { ...ref, ftBase: u.origin } : null;
+}
+
+// Parse the pasted team URLs into { pg, ft }, or send a 400 and return null.
+function parseTeamUrls(body, res) {
+  const pgUrl = (body.pgUrl || '').trim();
+  const ftUrl = (body.ftUrl || '').trim();
+  if (!pgUrl && !ftUrl) {
+    res.status(400).json({ error: 'Enter a Perfect Game or Five Tool team URL' });
+    return null;
+  }
+  const pg = pgUrl ? parsePgTeamUrl(pgUrl) : null;
+  if (pgUrl && !pg) {
+    res.status(400).json({ error: 'The Perfect Game URL must be a team page with orgid and orgteamid in it' });
+    return null;
+  }
+  const ft = ftUrl ? parseFtTeamUrl(ftUrl) : null;
+  if (ftUrl && !ft) {
+    res.status(400).json({ error: 'The Five Tool URL must be a team page (.../team/details/<season>/<team id>)' });
+    return null;
+  }
+  return { pg, ft };
+}
+
+// Team key for the URLs: the PG IDs, or synthetic IDs for a Five Tool-only team.
+function teamIdsFor({ pg, ft }) {
+  if (pg) return { pgOrgId: pg.orgId, pgTeamId: pg.teamId };
+  const { syntheticPgIds } = require('../scrapers/fivetool');
+  const ids = syntheticPgIds(ft.teamUuid);
+  return { pgOrgId: ids.orgId, pgTeamId: ids.teamId };
+}
+
+// A team already added for these URLs, matched by its PG IDs or Five Tool team.
+async function findExistingTeam(refs) {
+  const { pgOrgId, pgTeamId } = teamIdsFor(refs);
+  const byIds = await queries.getTeam(pgOrgId, pgTeamId);
+  if (byIds?.slug) return byIds;
+  return refs.ft ? queries.getTeamByFtUuid(refs.ft.teamUuid) : null;
+}
+
+// POST /api/admin/teams/lookup - fetch team names from the pasted URLs so the
+// admin can confirm the team before adding it. Saves nothing.
+router.post('/admin/teams/lookup', requireGlobalAdmin, async (req, res) => {
+  try {
+    const refs = parseTeamUrls(req.body, res);
+    if (!refs) return;
+    const result = { pg: null, ft: null, existing: null };
+
+    if (refs.pg) {
+      const { fetchPgTeamInfo } = require('../scrapers/team');
+      const year = parseInt(process.env.YEAR) || new Date().getFullYear();
+      const info = await fetchPgTeamInfo(refs.pg.orgId, refs.pg.teamId, year);
+      if (!info) return res.status(404).json({ error: 'Perfect Game has no team at that URL. Check the orgid and orgteamid.' });
+      result.pg = { name: info.name, ageGroup: info.ageGroup, hometown: info.hometown, record: info.record };
+    }
+    if (refs.ft) {
+      const { fetchFtTeamName } = require('../scrapers/fivetool');
+      const name = await fetchFtTeamName(refs.ft.teamUuid, refs.ft.season, refs.ft.ftBase);
+      if (!name) return res.status(404).json({ error: 'Five Tool has no team at that URL.' });
+      result.ft = { name, season: refs.ft.season };
+    }
+
+    const existing = await findExistingTeam(refs);
+    if (existing) result.existing = { name: existing.name, slug: existing.slug, hasFiveTool: !!existing.ft_team_uuid };
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/teams - add a team from its PG and/or Five Tool URLs and start
+// its first scrape. Adding a Five Tool URL to an already-added PG team links it.
+router.post('/admin/teams', requireGlobalAdmin, async (req, res) => {
+  try {
+    const refs = parseTeamUrls(req.body, res);
+    if (!refs) return;
+    const { scrapeBySlug } = require('../scrapers/run');
+    const { pgOrgId, pgTeamId } = teamIdsFor(refs);
+    const ft = refs.ft
+      ? { ftTeamUuid: refs.ft.teamUuid, ftSeasons: refs.ft.season, ftBaseUrl: refs.ft.ftBase }
+      : {};
+
+    const existing = await findExistingTeam(refs);
+    if (existing) {
+      const sameTeam = existing.pg_org_id === pgOrgId && existing.pg_team_id === pgTeamId;
+      if (refs.ft && sameTeam && !existing.ft_team_uuid) {
+        await queries.setTeamFiveTool(pgOrgId, pgTeamId, ft);
+        scrapeBySlug(existing.slug).catch(err => console.error(`[api] Scrape failed for ${existing.slug}: ${err.message}`));
+        return res.json({ status: 'linked', slug: existing.slug });
+      }
+      return res.status(409).json({ error: `Already added as ${existing.name} (/${existing.slug})` });
+    }
+
+    const name = (req.body.name || '').trim();
+    const slug = (req.body.slug || '').trim();
+    if (!name) return res.status(400).json({ error: 'Team name required' });
+    if (!/^[a-z0-9-]+$/.test(slug)) return res.status(400).json({ error: 'The team URL may only contain lowercase letters, numbers, and hyphens' });
+    if (await queries.getTeamBySlug(slug)) return res.status(409).json({ error: 'That team URL is already taken' });
+
+    await queries.registerTeam({ slug, pgOrgId, pgTeamId, name, ageGroup: (req.body.ageGroup || '').trim(), ...ft });
+    scrapeBySlug(slug).catch(err => console.error(`[api] Initial scrape failed for ${slug}: ${err.message}`));
+    res.json({ status: 'added', slug });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

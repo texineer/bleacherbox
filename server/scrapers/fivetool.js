@@ -40,6 +40,11 @@ function syntheticPgIds(teamUuid) {
   return { orgId: hash('org:' + teamUuid), teamId: hash('team:' + teamUuid) };
 }
 
+// FT-only teams get synthetic PG IDs in this range; they have no PG pages.
+function isSyntheticPgId(orgId) {
+  return orgId >= 900000000;
+}
+
 function teamUrl(ftBase, season, teamUuid) {
   return `${ftBase}/team/details/${season}/${teamUuid}`;
 }
@@ -207,6 +212,13 @@ async function scrapeFtEventTeams(eventSlug, ageGroup, ftBase = DEFAULT_FT_BASE)
     console.log(`[ft-scraper] Error fetching event teams ${eventSlug}: ${err.message}`);
     return { teams: [], venues: [] };
   }
+}
+
+// Fetch an FT team profile and return the team name without saving anything.
+async function fetchFtTeamName(teamUuid, season, ftBase = DEFAULT_FT_BASE) {
+  const html = await fetchRenderedHtml(teamUrl(ftBase, season, teamUuid));
+  const m = cheerio.load(html)('title').text().trim().match(/^(.+?)\s*Team Profile/i);
+  return m ? m[1].trim() : '';
 }
 
 async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId, ftBase = DEFAULT_FT_BASE) {
@@ -428,4 +440,4 @@ async function scrapeFiveToolTeam(teamUuid, season, orgId, teamId, ftBase = DEFA
   return result;
 }
 
-module.exports = { scrapeFiveToolTeam, scrapeFtEventTeams, scrapeFtEventSchedule, FT_SITES, DEFAULT_FT_BASE, ftEventHash, eventSlugFromUrl, teamRefFromUrl, syntheticPgIds };
+module.exports = { scrapeFiveToolTeam, fetchFtTeamName, scrapeFtEventTeams, scrapeFtEventSchedule, FT_SITES, DEFAULT_FT_BASE, ftEventHash, eventSlugFromUrl, teamRefFromUrl, syntheticPgIds, isSyntheticPgId };

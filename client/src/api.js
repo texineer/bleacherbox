@@ -317,6 +317,16 @@ export function addTeamFromTournament(body) {
   return authFetch('POST', '/teams/from-tournament', body);
 }
 
+// ── Team catalog (global admin) ───────────────────────────────────────────────
+
+export function adminLookupTeam(pgUrl, ftUrl) {
+  return authFetch('POST', '/admin/teams/lookup', { pgUrl, ftUrl });
+}
+
+export function adminAddTeam(body) {
+  return authFetch('POST', '/admin/teams', body);
+}
+
 // ── Create manual game (auth required) ────────────────────────────────────────
 
 export function createGame(teamOrgId, teamId, opponentName) {

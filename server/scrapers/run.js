@@ -1,7 +1,7 @@
 const { scrapeTeamPage } = require('./team');
 const { scrapeTournamentPage, scrapePitchingReport, scrapeTournamentSchedule } = require('./tournament');
 const { scrapeGameScore } = require('./game');
-const { scrapeFiveToolTeam } = require('./fivetool');
+const { scrapeFiveToolTeam, isSyntheticPgId } = require('./fivetool');
 const queries = require('../db/queries');
 const { closeDb, saveDb } = require('../db/schema');
 
@@ -36,8 +36,11 @@ async function scrapeAll(orgId, teamId, year = DEFAULT_YEAR, ftTeamUuid = null, 
   console.log(`\n=== Scraping team ${orgId}/${teamId} for ${year} ===\n`);
 
   try {
-    // Step 1: Scrape team page (roster, schedule, tournaments)
-    const teamResult = await scrapeTeamPage(orgId, teamId, year);
+    // Step 1: Scrape team page (roster, schedule, tournaments).
+    // Five Tool-only teams have placeholder PG IDs and no PG page to fetch.
+    const teamResult = isSyntheticPgId(orgId)
+      ? { team: null, players: [], tournaments: [], games: [] }
+      : await scrapeTeamPage(orgId, teamId, year);
 
     // Step 2: Scrape each tournament page for details + pitch counts
     for (const tournament of teamResult.tournaments) {

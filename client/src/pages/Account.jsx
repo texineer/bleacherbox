@@ -3,13 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { getTeams, joinTeam, leaveTeam, changePassword } from '../api'
 import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/LoadingSpinner'
-import AddTeamByTournament from '../components/AddTeamByTournament'
 
 export default function Account() {
   const navigate = useNavigate()
-  const { user, roles, logout, refreshRoles, refreshUser, loading: authLoading } = useAuth()
+  const { user, roles, logout, refreshRoles, refreshUser, isGlobalAdmin, loading: authLoading } = useAuth()
   const [showAddTeam, setShowAddTeam] = useState(false)
-  const [addTeamMode, setAddTeamMode] = useState('join') // 'join' | 'new'
   const [allTeams, setAllTeams] = useState([])
   const [loadingTeams, setLoadingTeams] = useState(false)
 
@@ -40,13 +38,6 @@ export default function Account() {
   async function handleJoin(team) {
     await joinTeam(team.pg_org_id, team.pg_team_id).catch(() => {})
     await refreshRoles()
-  }
-
-  async function handleTeamAdded(slug) {
-    await refreshRoles()
-    setShowAddTeam(false)
-    setAddTeamMode('join')
-    navigate(`/${slug}`)
   }
 
   async function handleLeave(role) {
@@ -82,11 +73,19 @@ export default function Account() {
           <Link to="/" className="flex items-center gap-2 no-underline">
             <img src="/bleacherbox_logo_sm.png" alt="BleacherBox" className="h-5 object-contain" />
           </Link>
-          <button onClick={logout}
-            className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded"
-            style={{ color: 'var(--navy)', background: 'var(--gold)' }}>
-            Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            {isGlobalAdmin && (
+              <Link to="/admin" className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded no-underline"
+                style={{ color: 'white', border: '1px solid var(--gold)' }}>
+                Admin
+              </Link>
+            )}
+            <button onClick={logout}
+              className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded"
+              style={{ color: 'var(--navy)', background: 'var(--gold)' }}>
+              Sign Out
+            </button>
+          </div>
         </div>
         <div className="stitch-line mt-4" />
       </header>
@@ -199,24 +198,10 @@ export default function Account() {
         {showAddTeam && (
           <div className="card overflow-hidden">
             <div className="px-4 py-3" style={{ background: 'var(--navy)' }}>
-              <div className="font-display text-base text-white tracking-wider">ADD A TEAM</div>
+              <div className="font-display text-base text-white tracking-wider">FOLLOW A TEAM</div>
             </div>
 
-            <div className="flex border-b" style={{ borderColor: 'var(--border)' }}>
-              {[['join', 'Join Existing'], ['new', 'New by Tournament']].map(([mode, label]) => (
-                <button key={mode} onClick={() => setAddTeamMode(mode)}
-                  className="flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider"
-                  style={{
-                    color: addTeamMode === mode ? 'var(--navy)' : 'var(--navy-muted)',
-                    borderBottom: addTeamMode === mode ? '2px solid var(--gold)' : '2px solid transparent',
-                  }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {addTeamMode === 'join' ? (
-              loadingTeams ? <div className="p-4"><LoadingSpinner /></div> : availableTeams.length === 0 ? (
+            {loadingTeams ? <div className="p-4"><LoadingSpinner /></div> : availableTeams.length === 0 ? (
                 <div className="p-4 text-sm text-center" style={{ color: 'var(--navy-muted)' }}>
                   {allTeams.length === 0 ? 'No teams available' : 'You\'re following all available teams'}
                 </div>
@@ -237,10 +222,12 @@ export default function Account() {
                     </button>
                   ))}
                 </div>
-              )
-            ) : (
-              <AddTeamByTournament onAdded={handleTeamAdded} />
-            )}
+              )}
+            <p className="px-4 py-3 text-xs border-t" style={{ color: 'var(--navy-muted)', borderColor: 'var(--border)' }}>
+              Don't see your team? Email{' '}
+              <a href="mailto:ray@texineer.com" className="font-semibold" style={{ color: 'var(--navy)' }}>ray@texineer.com</a>
+              {' '}with its Perfect Game or Five Tool team link and we'll add it.
+            </p>
           </div>
         )}
       </main>

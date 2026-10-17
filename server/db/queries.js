@@ -38,6 +38,17 @@ async function getTeam(orgId, teamId) {
   return get(db, 'SELECT * FROM teams WHERE pg_org_id = ? AND pg_team_id = ?', [orgId, teamId]);
 }
 
+async function getTeamByFtUuid(ftTeamUuid) {
+  const db = await getDb();
+  return get(db, 'SELECT * FROM teams WHERE ft_team_uuid = ? AND slug IS NOT NULL', [ftTeamUuid]);
+}
+
+async function setTeamFiveTool(pgOrgId, pgTeamId, { ftTeamUuid, ftSeasons, ftBaseUrl }) {
+  const db = await getDb();
+  run(db, 'UPDATE teams SET ft_team_uuid = ?, ft_seasons = ?, ft_base_url = ? WHERE pg_org_id = ? AND pg_team_id = ?',
+    [ftTeamUuid, ftSeasons, ftBaseUrl, pgOrgId, pgTeamId]);
+}
+
 async function getTeamBySlug(slug) {
   const db = await getDb();
   return get(db, 'SELECT * FROM teams WHERE slug = ?', [slug]);
@@ -797,7 +808,7 @@ async function setStreamConfig(orgId, teamId, youtubeUrl, isLive) {
 }
 
 module.exports = {
-  upsertTeam, getTeam, getTeamBySlug, getAllTeams, registerTeam, searchTeams,
+  upsertTeam, getTeam, getTeamBySlug, getTeamByFtUuid, setTeamFiveTool, getAllTeams, registerTeam, searchTeams,
   upsertPlayer, getPlayers, setPlayerCardPath,
   upsertTournament, linkTeamTournament, getTeamTournaments, getTournament,
   upsertGame, createManualGame, getTeamGames, getGame, getGameByPgId, getTournamentGames,

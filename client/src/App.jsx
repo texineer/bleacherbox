@@ -12,6 +12,7 @@ import TournamentBracket from './pages/TournamentBracket'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import Account from './pages/Account'
+import Admin from './pages/Admin'
 import Features from './pages/Features'
 import { PrivacyPolicy, TermsOfService } from './pages/Legal'
 import ScoreGame from './pages/ScoreGame'
@@ -36,6 +37,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Auth />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="/features" element={<Features />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />

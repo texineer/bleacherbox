@@ -52,6 +52,14 @@ async function scrapeTeamPage(orgId, teamId, year) {
   return result;
 }
 
+// Fetch a PG team page and return its parsed info without saving anything.
+// Returns null when PG shows its sign-in wall (unknown org/team IDs).
+async function fetchPgTeamInfo(orgId, teamId, year) {
+  const url = teamUrl(orgId, teamId, year);
+  const html = await fetchPgHtml(url);
+  return parseTeamInfo(cheerio.load(html), orgId, teamId, url);
+}
+
 function parseTeamInfo($, orgId, teamId, url) {
   // Use page title (more reliable than h1 which may pick up ads)
   let name = '';
@@ -338,4 +346,4 @@ function parseSchedule($, orgId, teamId) {
   return { tournaments, games: uniqueGames };
 }
 
-module.exports = { scrapeTeamPage, PG_BASE };
+module.exports = { scrapeTeamPage, fetchPgTeamInfo, PG_BASE };
