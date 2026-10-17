@@ -4,6 +4,7 @@ import { getTeam, getSchedule, triggerScrape, syncTournament, getTournamentTeams
 import { useAuth } from '../context/AuthContext'
 import GameCard from '../components/GameCard'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { hasPerfectGame } from '../teams'
 
 export default function Dashboard({ orgId, teamId, slug }) {
   const [team, setTeam] = useState(null)
@@ -55,6 +56,8 @@ export default function Dashboard({ orgId, teamId, slug }) {
   }
 
   if (loading) return <LoadingSpinner />
+
+  const hasFiveTool = !!(team?.ft_team_uuid && team?.ft_seasons)
 
   if (error) {
     return (
@@ -145,10 +148,12 @@ export default function Dashboard({ orgId, teamId, slug }) {
             </div>
           </div>
 
-          {/* Team Sites */}
+          {/* Team Sites — Five Tool-only teams have no Perfect Game profile */}
+          {(hasPerfectGame(orgId) || hasFiveTool) && (
           <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
             <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-center mb-2" style={{ color: 'var(--navy-muted)' }}>Team Sites</div>
             <div className="flex gap-2">
+              {hasPerfectGame(orgId) && (
               <a href={`https://www.perfectgame.org/PGBA/Team/default.aspx?orgid=${orgId}&orgteamid=${teamId}`}
                 target="_blank" rel="noopener"
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl no-underline active:scale-97"
@@ -156,7 +161,8 @@ export default function Dashboard({ orgId, teamId, slug }) {
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>
                 <span className="text-xs font-bold uppercase tracking-wider">Perfect Game</span>
               </a>
-              {team?.ft_team_uuid && team?.ft_seasons && (
+              )}
+              {hasFiveTool && (
                 <a href={`${team.ft_base_url || 'https://play.fivetoolyouth.org'}/team/details/${team.ft_seasons.split(',')[0]}/${team.ft_team_uuid}`}
                   target="_blank" rel="noopener"
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl no-underline active:scale-97"
@@ -167,6 +173,7 @@ export default function Dashboard({ orgId, teamId, slug }) {
               )}
             </div>
           </div>
+          )}
         </div>
       </div>
 

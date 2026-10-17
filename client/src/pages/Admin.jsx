@@ -5,9 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 import PendingAccounts from '../components/PendingAccounts'
 import AddTeamByTournament from '../components/AddTeamByTournament'
-
-// FT-only teams get synthetic PG IDs at or above this value (see server fivetool.js).
-const SYNTHETIC_PG_ID_MIN = 900000000
+import { hasPerfectGame } from '../teams'
 
 const inputClass = 'w-full h-10 px-3 rounded-lg border text-sm focus:outline-none'
 const inputStyle = { borderColor: 'var(--border)', color: 'var(--navy)', background: 'var(--cream)' }
@@ -235,7 +233,7 @@ function TeamList({ teams, loading, onDeleted }) {
               </Link>
               <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                 {t.age_group && <SourceBadge>{t.age_group}</SourceBadge>}
-                {t.pg_org_id < SYNTHETIC_PG_ID_MIN && <SourceBadge>PG</SourceBadge>}
+                {hasPerfectGame(t.pg_org_id) && <SourceBadge>PG</SourceBadge>}
                 {t.ft_team_uuid && <SourceBadge>5 TOOL</SourceBadge>}
                 {t.last_scraped && (
                   <span className="text-[10px]" style={{ color: 'var(--navy-muted)' }}>
