@@ -41,6 +41,11 @@ const corsOptions = {
   },
 };
 
+// Behind Cloudflare Tunnel + Nginx Proxy Manager on the LAN: trust X-Forwarded-*
+// from loopback/private-network proxies so req.secure reflects the visitor's
+// HTTPS connection and secure session cookies are issued.
+app.set('trust proxy', 'loopback, uniquelocal');
+
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
