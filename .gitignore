@@ -11,3 +11,6 @@ live-video/field-rig/logs/
 live-video/field-rig/tools/mediamtx/mediamtx.exe
 live-video/field-rig/tools/mediamtx/mediamtx.yml
 live-video/field-rig/**/*.bak
+
+# Claude Code per-machine settings (permissions)
+.claude/settings.local.json
