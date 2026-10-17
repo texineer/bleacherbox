@@ -61,6 +61,7 @@ export default function ScoreGame() {
   return (
     <div className="min-h-dvh flex flex-col">
       <header className="relative overflow-hidden py-10 px-6 text-center" style={{ background: 'var(--navy)' }}>
+        <div className="safe-top-spacer" />
         <div className="relative z-10 max-w-lg mx-auto">
           <h1 className="font-display text-4xl text-white tracking-wider">SCORE GAME</h1>
           <p className="text-sm mt-1 font-medium" style={{ color: 'var(--gold)' }}>

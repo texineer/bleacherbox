@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { getSchedule } from '../api'
 import GameCard from '../components/GameCard'
 import LoadingSpinner from '../components/LoadingSpinner'
+import BackButton from '../components/BackButton'
 
 export default function Schedule({ orgId, teamId }) {
+  const { slug } = useParams()
   const [schedule, setSchedule] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -34,10 +36,7 @@ export default function Schedule({ orgId, teamId }) {
 
   return (
     <div className="space-y-8">
-      <Link to=".." className="inline-flex items-center gap-1 text-xs font-semibold no-underline" style={{ color: 'var(--navy-muted)' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-        Home
-      </Link>
+      <BackButton fallback={`/${slug}`} />
       <div className="flex items-center justify-between">
         <h1 className="font-display text-3xl" style={{ color: 'var(--navy)' }}>SCHEDULE</h1>
         <div className="section-label">{tournaments.length} events</div>

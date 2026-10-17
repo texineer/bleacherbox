@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getTournamentPitchingReport, pitchSeverity } from '../api'
 import LoadingSpinner from '../components/LoadingSpinner'
+import BackButton from '../components/BackButton'
 
 const DAILY_MAX = 95
 
 export default function PitchingReport() {
-  const { eventId } = useParams()
+  const { eventId, slug } = useParams()
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('totals')
@@ -41,11 +42,7 @@ export default function PitchingReport() {
 
   return (
     <div className="space-y-6">
-      {/* Back */}
-      <Link to="../schedule" className="inline-flex items-center gap-1 text-xs font-semibold no-underline" style={{ color: 'var(--navy-muted)' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-        Schedule
-      </Link>
+      <BackButton fallback={`/${slug}`} />
 
       <h1 className="font-display text-3xl" style={{ color: 'var(--navy)' }}>PITCHING REPORT</h1>
 

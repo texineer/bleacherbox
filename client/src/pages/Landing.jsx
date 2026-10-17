@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 import GoogleSignInButton from '../components/GoogleSignInButton'
+import { getLastTeam } from '../lastTeam'
 
 function AuthForm() {
   const [mode, setMode] = useState('login')
@@ -107,9 +108,9 @@ export default function Landing() {
   // Auto-redirect: one team → team page, logged in → account page
   useEffect(() => {
     if (!authLoading && user) {
-      if (roles.length === 1) navigate(`/${roles[0].slug}`, { replace: true })
-      else if (roles.length > 1) navigate(`/${roles[0].slug}`, { replace: true })
-      else navigate('/account', { replace: true })
+      const last = getLastTeam()
+      const team = roles.find(r => r.slug === last) || roles[0]
+      navigate(team ? `/${team.slug}` : '/teams', { replace: true })
     }
   }, [authLoading, user, roles])
 
@@ -117,6 +118,7 @@ export default function Landing() {
     <div className="min-h-dvh flex flex-col">
       {/* Header */}
       <header className="relative overflow-hidden py-10 px-6 text-center" style={{ background: 'var(--navy)' }}>
+        <div className="safe-top-spacer" />
         <div className="relative z-10 max-w-lg mx-auto">
           <img src="/bleacherbox_logo_sm.png" alt="BleacherBox" className="h-8 object-contain mx-auto mb-1" />
           <h1 className="font-display text-4xl text-white tracking-wider">BLEACHERBOX.APP</h1>

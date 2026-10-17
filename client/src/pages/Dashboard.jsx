@@ -6,6 +6,15 @@ import GameCard from '../components/GameCard'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { hasPerfectGame } from '../teams'
 
+// Which past tournaments are expanded, kept for the visit so they stay open when
+// the user comes back from a game.
+function loadExpanded(slug) {
+  try { return new Set(JSON.parse(sessionStorage.getItem(`bb.expanded.${slug}`)) || []) } catch { return new Set() }
+}
+function saveExpanded(slug, set) {
+  try { sessionStorage.setItem(`bb.expanded.${slug}`, JSON.stringify([...set])) } catch { /* storage unavailable */ }
+}
+
 export default function Dashboard({ orgId, teamId, slug }) {
   const [team, setTeam] = useState(null)
   const [schedule, setSchedule] = useState(null)
@@ -13,7 +22,7 @@ export default function Dashboard({ orgId, teamId, slug }) {
   const [error, setError] = useState(null)
   const [scraping, setScraping] = useState(false)
   const [syncingTournament, setSyncingTournament] = useState(null)
-  const [expandedTournaments, setExpandedTournaments] = useState(new Set())
+  const [expandedTournaments, setExpandedTournaments] = useState(() => loadExpanded(slug))
   const { user, hasTeamRole } = useAuth()
 
   useEffect(() => {
@@ -192,6 +201,7 @@ export default function Dashboard({ orgId, teamId, slug }) {
         const toggleExpand = () => setExpandedTournaments(prev => {
           const next = new Set(prev)
           next.has(t.pg_event_id) ? next.delete(t.pg_event_id) : next.add(t.pg_event_id)
+          saveExpanded(slug, next)
           return next
         })
         // Summary for collapsed past tournaments

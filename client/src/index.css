@@ -213,3 +213,9 @@ body {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* Room for the phone status bar / notch. The app draws under it
+   (viewport-fit=cover + black-translucent), so each header starts with this. */
+.safe-top-spacer {
+  height: env(safe-area-inset-top);
+}

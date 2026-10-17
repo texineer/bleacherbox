@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getGame, getTeamBySlug, getTeams, initScorebookGame, saveLineup, startScorebookGame } from '../api'
 import { useAuth } from '../context/AuthContext'
+import BackButton from '../components/BackButton'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 const POSITIONS = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'EH']
@@ -132,6 +133,7 @@ export default function LineupSetup() {
 
   return (
     <div className="space-y-4 pb-8">
+      <BackButton fallback={`/${slug}/game/${gameId}`} />
       {/* Header */}
       <div>
         <div className="font-display text-2xl" style={{ color: 'var(--navy)' }}>LINEUP SETUP</div>

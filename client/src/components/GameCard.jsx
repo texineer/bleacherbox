@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 
 export default function GameCard({ game, highlight, index = 0 }) {
+  const { slug } = useParams()
   const isWin = game.result === 'W'
   const isLoss = game.result === 'L'
   const hasResult = !!game.result
@@ -22,7 +23,7 @@ export default function GameCard({ game, highlight, index = 0 }) {
       }}
     >
       <Link
-        to={`game/${game.id}`}
+        to={`/${slug}/game/${game.id}`}
         className="flex items-stretch no-underline"
       >
         {/* Main content */}
@@ -76,7 +77,7 @@ export default function GameCard({ game, highlight, index = 0 }) {
       {/* Pitch Counts button row */}
       {hasResult && (
         <Link
-          to={`game/${game.id}`}
+          to={`/${slug}/game/${game.id}`}
           className="flex items-center justify-between px-4 py-2 no-underline border-t"
           style={{ borderColor: 'var(--border)', background: 'var(--sky)' }}
         >

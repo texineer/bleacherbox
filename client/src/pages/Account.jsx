@@ -1,15 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getTeams, joinTeam, leaveTeam, changePassword } from '../api'
+import { changePassword } from '../api'
 import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 export default function Account() {
   const navigate = useNavigate()
-  const { user, roles, logout, refreshRoles, refreshUser, isGlobalAdmin, loading: authLoading } = useAuth()
-  const [showAddTeam, setShowAddTeam] = useState(false)
-  const [allTeams, setAllTeams] = useState([])
-  const [loadingTeams, setLoadingTeams] = useState(false)
+  const { user, logout, refreshUser, isGlobalAdmin, loading: authLoading } = useAuth()
 
   // Password change
   const [showPwChange, setShowPwChange] = useState(false)
@@ -23,28 +20,7 @@ export default function Account() {
     if (!authLoading && !user) navigate('/login', { replace: true })
   }, [authLoading, user])
 
-  useEffect(() => {
-    if (showAddTeam && allTeams.length === 0) {
-      setLoadingTeams(true)
-      getTeams().then(setAllTeams).catch(() => setAllTeams([])).finally(() => setLoadingTeams(false))
-    }
-  }, [showAddTeam])
-
   if (authLoading || !user) return <LoadingSpinner />
-
-  const myTeamKeys = new Set(roles.map(r => `${r.pg_org_id}-${r.pg_team_id}`))
-  const availableTeams = allTeams.filter(t => !myTeamKeys.has(`${t.pg_org_id}-${t.pg_team_id}`))
-
-  async function handleJoin(team) {
-    await joinTeam(team.pg_org_id, team.pg_team_id).catch(() => {})
-    await refreshRoles()
-  }
-
-  async function handleLeave(role) {
-    if (!confirm(`Remove ${role.team_name || role.slug} from your teams?`)) return
-    await leaveTeam(role.pg_org_id, role.pg_team_id).catch(() => {})
-    await refreshRoles()
-  }
 
   async function handlePasswordChange(e) {
     e.preventDefault()
@@ -66,13 +42,12 @@ export default function Account() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="flex-1 flex flex-col">
       {/* Header */}
-      <header className="relative overflow-hidden py-6 px-6" style={{ background: 'var(--navy)' }}>
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <Link to="/" className="flex items-center gap-2 no-underline">
-            <img src="/bleacherbox_logo_sm.png" alt="BleacherBox" className="h-5 object-contain" />
-          </Link>
+      <header className="relative overflow-hidden px-6" style={{ background: 'var(--navy)' }}>
+        <div className="safe-top-spacer" />
+        <div className="flex items-center justify-between max-w-2xl mx-auto py-5">
+          <img src="/bleacherbox_logo_sm.png" alt="BleacherBox" className="h-5 object-contain" />
           <div className="flex items-center gap-2">
             {isGlobalAdmin && (
               <Link to="/admin" className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded no-underline"
@@ -87,7 +62,7 @@ export default function Account() {
             </button>
           </div>
         </div>
-        <div className="stitch-line mt-4" />
+        <div className="stitch-line" />
       </header>
 
       <main className="flex-1 px-4 py-6 max-w-2xl mx-auto w-full space-y-6">
@@ -140,101 +115,16 @@ export default function Account() {
           )}
         </div>
 
-        {/* My Teams */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="section-label">My Teams</div>
-            <button onClick={() => setShowAddTeam(v => !v)}
-              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg active:scale-95"
-              style={{ background: showAddTeam ? 'var(--navy)' : 'var(--gold)', color: showAddTeam ? 'white' : 'var(--navy)' }}>
-              {showAddTeam ? (
-                <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg> Close</>
-              ) : (
-                <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg> Add Team</>
-              )}
-            </button>
-          </div>
+        <p className="text-sm text-center" style={{ color: 'var(--navy-muted)' }}>
+          Your teams are on the <Link to="/teams" className="font-semibold" style={{ color: 'var(--navy)' }}>Teams</Link> tab.
+        </p>
 
-          {roles.length > 0 ? (
-            <div className="space-y-2">
-              {roles.map((role, i) => (
-                <div key={`${role.pg_org_id}-${role.pg_team_id}`} className="card overflow-hidden">
-                  <div className="flex items-center gap-3 p-3">
-                    <Link to={`/${role.slug}`} className="flex items-center gap-3 flex-1 min-w-0 no-underline">
-                      <img src={role.logo_url || '/yardbirds-logo.png'} alt="" className="w-11 h-11 object-contain shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-display text-lg leading-tight truncate" style={{ color: 'var(--navy)' }}>
-                          {role.team_name || role.slug}
-                        </div>
-                        <div className="flex gap-1.5 mt-0.5">
-                          {role.age_group && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                              style={{ background: 'var(--powder-pale)', color: 'var(--navy)' }}>{role.age_group}</span>
-                          )}
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ background: 'var(--gold)', color: 'var(--navy)' }}>{role.role.toUpperCase()}</span>
-                        </div>
-                      </div>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round"><path d="M9 6l6 6-6 6" /></svg>
-                    </Link>
-                    <button onClick={() => handleLeave(role)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-xs flex-shrink-0 active:scale-95"
-                      style={{ background: 'var(--loss-bg, #fdecea)', color: 'var(--loss)' }}>
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="card p-6 text-center">
-              <div className="font-display text-xl mb-1" style={{ color: 'var(--navy-muted)' }}>NO TEAMS</div>
-              <p className="text-sm" style={{ color: 'var(--navy-muted)' }}>Tap "Add Team" to follow a team</p>
-            </div>
-          )}
+        <div className="text-center text-[10px] font-semibold uppercase tracking-wider space-x-3" style={{ color: 'var(--navy-muted)' }}>
+          <Link to="/features" className="no-underline" style={{ color: 'var(--navy-muted)' }}>Features</Link>
+          <Link to="/privacy" className="no-underline" style={{ color: 'var(--navy-muted)' }}>Privacy</Link>
+          <Link to="/terms" className="no-underline" style={{ color: 'var(--navy-muted)' }}>Terms</Link>
         </div>
-
-        {/* Add Team panel */}
-        {showAddTeam && (
-          <div className="card overflow-hidden">
-            <div className="px-4 py-3" style={{ background: 'var(--navy)' }}>
-              <div className="font-display text-base text-white tracking-wider">FOLLOW A TEAM</div>
-            </div>
-
-            {loadingTeams ? <div className="p-4"><LoadingSpinner /></div> : availableTeams.length === 0 ? (
-                <div className="p-4 text-sm text-center" style={{ color: 'var(--navy-muted)' }}>
-                  {allTeams.length === 0 ? 'No teams available' : 'You\'re following all available teams'}
-                </div>
-              ) : (
-                <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                  {availableTeams.map(t => (
-                    <button key={`${t.pg_org_id}-${t.pg_team_id}`}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-[var(--sky)]"
-                      onClick={() => handleJoin(t)}>
-                      <img src={t.logo_url || '/yardbirds-logo.png'} alt="" className="w-10 h-10 object-contain shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate" style={{ color: 'var(--navy)' }}>{t.name}</div>
-                        <div className="flex gap-1.5 mt-0.5">
-                          {t.age_group && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--powder-pale)', color: 'var(--navy)' }}>{t.age_group}</span>}
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-bold px-2 py-1 rounded flex-shrink-0" style={{ background: 'var(--win-bg)', color: 'var(--win)' }}>+ Add</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            <p className="px-4 py-3 text-xs border-t" style={{ color: 'var(--navy-muted)', borderColor: 'var(--border)' }}>
-              Don't see your team? Email{' '}
-              <a href="mailto:ray@texineer.com" className="font-semibold" style={{ color: 'var(--navy)' }}>ray@texineer.com</a>
-              {' '}with its Perfect Game or Five Tool team link and we'll add it.
-            </p>
-          </div>
-        )}
       </main>
-
-      <footer className="text-center py-4 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--navy-muted)' }}>
-        BleacherBox
-      </footer>
     </div>
   )
 }

@@ -275,8 +275,9 @@ export default function Admin() {
   if (authLoading) return <LoadingSpinner />
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="flex-1 flex flex-col">
       <header className="relative overflow-hidden py-6 px-6" style={{ background: 'var(--navy)' }}>
+        <div className="safe-top-spacer" />
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <Link to="/account" className="flex items-center gap-2 no-underline">
             <img src="/bleacherbox_logo_sm.png" alt="BleacherBox" className="h-5 object-contain" />

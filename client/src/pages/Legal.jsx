@@ -30,8 +30,9 @@ function List({ items }) {
 
 function LegalPage({ title, children }) {
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="flex-1 flex flex-col">
       <header className="relative overflow-hidden py-6 px-6 text-center" style={{ background: 'var(--navy)' }}>
+        <div className="safe-top-spacer" />
         <div className="relative z-10 max-w-lg mx-auto">
           <Link to="/">
             <img src="/bleacherbox_logo_sm.png" alt="BleacherBox" className="h-10 object-contain mx-auto mb-2" />

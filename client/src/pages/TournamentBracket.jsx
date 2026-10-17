@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getTournamentBracket } from '../api'
 import LoadingSpinner from '../components/LoadingSpinner'
+import BackButton from '../components/BackButton'
 
 const PG_BASE = 'https://www.perfectgame.org'
 
 export default function TournamentBracket() {
-  const { eventId } = useParams()
+  const { eventId, slug } = useParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -28,10 +29,7 @@ export default function TournamentBracket() {
 
   return (
     <div className="space-y-4">
-      <Link to="../schedule" className="inline-flex items-center gap-1 text-xs font-semibold no-underline" style={{ color: 'var(--navy-muted)' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-        Schedule
-      </Link>
+      <BackButton fallback={`/${slug}`} />
 
       <div>
         <h1 className="font-display text-3xl" style={{ color: 'var(--navy)' }}>BRACKET</h1>

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getScorebookState } from '../api'
 import BasesDiamond from '../components/BasesDiamond'
 import LoadingSpinner from '../components/LoadingSpinner'
+import BackButton from '../components/BackButton'
 
 const OUTCOME_COLORS = {
   K: 'var(--loss)', 'Kl': 'var(--loss)', K_L: 'var(--loss)',
@@ -110,7 +111,7 @@ function InningScoreGrid({ inningScores, currentInning, currentHalf, homeTeam, a
 }
 
 export default function LiveScoreboard() {
-  const { gameId } = useParams()
+  const { gameId, slug } = useParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
@@ -191,6 +192,7 @@ export default function LiveScoreboard() {
 
   return (
     <div className="space-y-3 pb-4">
+      <BackButton fallback={`/${slug}/game/${gameId}`} />
       {/* Status bar */}
       <div className="card px-4 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2">

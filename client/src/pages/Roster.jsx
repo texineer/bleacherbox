@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import WalkupSongManager from '../components/WalkupSongManager'
 import { ENABLED } from '../features'
 import LoadingSpinner from '../components/LoadingSpinner'
+import BackButton from '../components/BackButton'
 
 const PG_BASE = 'https://www.perfectgame.org'
 const DEFAULT_FT_BASE = 'https://play.fivetoolyouth.org'
@@ -37,11 +38,7 @@ export default function Roster() {
 
   return (
     <div className="space-y-4">
-      {/* Back */}
-      <Link to={`/${slug}`} className="inline-flex items-center gap-1 text-xs font-semibold no-underline" style={{ color: 'var(--navy-muted)' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-        Home
-      </Link>
+      <BackButton fallback={`/${slug}`} />
 
       {/* Header */}
       <div className="card overflow-hidden">

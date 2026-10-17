@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import BackButton from '../components/BackButton'
 import { ENABLED } from '../features'
 
 const FEATURES = [
@@ -48,7 +49,7 @@ const FEATURES = [
 const FAQ = [
   {
     q: 'How do I add my team?',
-    a: 'Tap your avatar in the top right, go to your Account page, and tap "Add Team." Select your team from the list of registered teams.',
+    a: 'Tap the Teams tab at the bottom of the screen and tap "+ Follow" next to your team. If your team is not listed, email ray@texineer.com with its Perfect Game or Five Tool link.',
   },
   {
     q: 'Where does the data come from?',
@@ -60,7 +61,7 @@ const FAQ = [
   },
   {
     q: 'Can I follow more than one team?',
-    a: 'Yes! Go to your Account page and tap "Add Team" to follow as many teams as you like. Switch between them using the dropdown in the header.',
+    a: 'Yes! Follow as many teams as you like from the Teams tab. Tap a team there to switch to it.',
   },
   {
     feature: 'dj',
@@ -78,12 +79,12 @@ const FAQ = [
 ]
 
 export default function Features() {
-  const navigate = useNavigate()
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="flex-1 flex flex-col">
       {/* Header */}
       <header className="relative overflow-hidden py-6 px-6 text-center" style={{ background: 'var(--navy)' }}>
+        <div className="safe-top-spacer" />
         <div className="relative z-10 max-w-lg mx-auto">
           <img src="/bleacherbox_logo_sm.png" alt="BleacherBox" className="h-10 object-contain mx-auto mb-2" />
           <h1 className="font-display text-3xl text-white tracking-wider">FEATURES</h1>
@@ -96,12 +97,7 @@ export default function Features() {
 
       <main className="flex-1 px-4 py-6 max-w-2xl mx-auto w-full space-y-8">
         {/* Back */}
-        <button onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1 text-xs font-semibold"
-          style={{ color: 'var(--navy-muted)' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-          Back
-        </button>
+        <BackButton fallback="/teams" />
 
         {/* Feature cards */}
         <div className="space-y-3">
