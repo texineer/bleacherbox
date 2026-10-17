@@ -35,7 +35,7 @@ Run any script with `powershell -ExecutionPolicy Bypass -File .\<script>.ps1`.
 
 | Script | What it does |
 |---|---|
-| `start-game.ps1` | Starts the relay, OBS and the game monitor |
+| `start-game.ps1 [-Rtmp]` | Starts the relay, OBS and the game monitor. Default: NDI OBS (x64) and checks NDI is on in each Mevo; `-Rtmp` for the old Mevo-to-relay path with the normal OBS |
 | `check-system.ps1 [-Field] [-SpeedTest]` | Pre-game health check of every hop, with the fix for each problem. `-SpeedTest` measures upload from the router and from the laptop and picks the 1080p or 720p profile |
 | `game-monitor.ps1` | Logs every network hop every 5 s during the game (started by `start-game.ps1`) |
 | `analyze-game.ps1` | Post-game report: disconnects and the hop that caused each, bitrate, dark feeds, Starlink outages |
@@ -43,7 +43,7 @@ Run any script with `powershell -ExecutionPolicy Bypass -File .\<script>.ps1`.
 | `vm35-release.ps1` / `vm35-resume.ps1` | Free the centerfield camera for its phone app without stopping the other feeds |
 | `test-cameras.ps1` | Fake Mevo feeds for practice at home |
 | `save-obs-config.ps1` | Copy OBS scene/profile tweaks back into this folder (never the stream key) |
-| `start-obs-x64-ndi.ps1` | Experimental: x64 OBS with NDI under emulation (see `GAME_DAY_SETUP.md`) |
+| `start-obs-x64-ndi.ps1` | x64 OBS with NDI under emulation (run by `start-game.ps1`; see `GAME_DAY_SETUP.md`) |
 
 Local-only, ignored by git: `site.local.json`, `logs/` (game monitor, upload tests, post-game reports)
 and `tools/mediamtx/mediamtx.exe`. Raw camera recordings go to `Videos\Baseball\raw` (7-day retention).
